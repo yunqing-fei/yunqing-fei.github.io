@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>US Customs Data Query Tool</title>
+  <style>
+    :root {
+      --bg: #f5f8ff;
+      --panel: #ffffff;
+      --panel-2: #f9fbff;
+      --blue: #1d4ed8;
+      --blue-2: #2563eb;
+      --blue-3: #60a5fa;
+      --navy: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --green: #059669;
+      --red: #dc2626;
+      --amber: #d97706;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--navy); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body::before {
+      content: "";
+      position: fixed; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(circle at 12% 4%, rgba(37, 99, 235, 0.14), transparent 28%),
+        radial-gradient(circle at 86% 9%, rgba(96, 165, 250, 0.18), transparent 24%),
+        linear-gradient(180deg, #ffffff 0%, #f5f8ff 42%, #eef4ff 100%);
+      z-index: -1;
+    }
+
+    .shell { max-width: 1480px; margin: 0 auto; padding: 28px; }
+    .hero {
+      position: relative; overflow: hidden; border-radius: 32px; background: linear-gradient(135deg, #ffffff 0%, #eef5ff 46%, #e8f1ff 100%);
+      border: 1px solid rgba(148, 163, 184, 0.25); box-shadow: var(--shadow); padding: 34px;
+    }
+    .hero::after {
+      content: ""; position: absolute; width: 420px; height: 420px; right: -130px; top: -180px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(29, 78, 216, 0.17), transparent 62%);
+    }
+    .hero-top { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; background: #e0edff; color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .hero h1 { margin: 18px 0 10px; font-size: clamp(30px, 4vw, 56px); letter-spacing: -0.055em; line-height: 0.96; max-width: 880px; }
+    .hero p { margin: 0; color: var(--muted); font-size: 16px; max-width: 860px; line-height: 1.65; }
+    .status-pill { display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); background: rgba(255,255,255,0.72); padding: 12px 14px; border-radius: 999px; white-space: nowrap; color: #334155; font-weight: 700; font-size: 13px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); }
+    .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--green); box-shadow: 0 0 0 5px rgba(5,150,105,.12); }
+
+    .grid { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 22px; margin-top: 22px; align-items: start; }
+    .card { background: rgba(255,255,255,.88); border: 1px solid rgba(148,163,184,.28); box-shadow: var(--shadow); border-radius: var(--radius); overflow: hidden; backdrop-filter: blur(10px); }
+    .card-header { padding: 22px 24px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .card-header h2 { margin: 0; font-size: 18px; letter-spacing: -0.02em; }
+    .card-header small { color: var(--muted); font-weight: 650; }
+    .card-body { padding: 22px 24px 24px; }
+
+    label { display: block; color: #334155; font-size: 12px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; }
+    input, select, textarea {
+      width: 100%; border: 1px solid #dbe4f0; background: #ffffff; border-radius: 15px; padding: 13px 14px; font-size: 14px; color: var(--navy);
+      outline: none; transition: border .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    textarea { min-height: 80px; resize: vertical; line-height: 1.5; }
+    input:focus, select:focus, textarea:focus { border-color: var(--blue-2); box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
+    .field { margin-bottom: 16px; }
+    .row { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+    .row-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 7px; }
+    .check { display: flex; gap: 9px; align-items: center; color: #475569; font-size: 13px; font-weight: 700; }
+    .check input { width: auto; }
+
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+    button {
+      border: none; border-radius: 16px; padding: 13px 16px; font-weight: 850; cursor: pointer; font-size: 14px;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    button:active { transform: translateY(1px); }
+    button.primary { background: linear-gradient(135deg, var(--blue), var(--blue-2)); color: #fff; box-shadow: 0 14px 28px rgba(37,99,235,.25); }
+    button.primary:hover { box-shadow: 0 18px 36px rgba(37,99,235,.32); }
+    button.secondary { background: #eaf2ff; color: var(--blue); border: 1px solid #cfe0ff; }
+    button.secondary:hover { background: #dfeaff; }
+    button.ghost { background: #ffffff; border: 1px solid var(--line); color: #334155; }
+    button:disabled { opacity: .52; cursor: not-allowed; box-shadow: none; }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-bottom: 18px; }
+    .metric { padding: 18px; border-radius: 22px; background: var(--panel); border: 1px solid var(--line); min-height: 104px; }
+    .metric .title { color: var(--muted); font-size: 12px; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; }
+    .metric .value { margin-top: 9px; font-size: 24px; line-height: 1.05; font-weight: 900; letter-spacing: -0.045em; }
+    .metric .delta { margin-top: 9px; font-size: 12px; font-weight: 850; color: var(--muted); }
+    .delta.up { color: var(--green); } .delta.down { color: var(--red); } .delta.flat { color: var(--muted); }
+
+    .panels { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: 18px; }
+    .chart-wrap { min-height: 320px; }
+    #chart { width: 100%; height: 320px; border-radius: 20px; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); border: 1px solid var(--line); }
+    .summary { padding: 2px 0 0; }
+    .summary ul { margin: 0; padding-left: 20px; color: #334155; line-height: 1.64; }
+    .summary li { margin-bottom: 10px; }
+    .summary b { color: var(--navy); }
+
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 18px 0 12px; }
+    .toolbar button { padding: 10px 13px; border-radius: 13px; font-size: 13px; }
+    .badge { display:inline-flex; align-items:center; gap:7px; padding:7px 10px; border-radius:999px; background:#eef6ff; color:#1d4ed8; border:1px solid #d4e7ff; font-size:12px; font-weight:850; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 12px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: #475569; background: #f8fbff; position: sticky; top: 0; z-index: 1; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .table-wrap { max-height: 430px; overflow: auto; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+    .muted { color: var(--muted); }
+    .error { border: 1px solid #fecaca; background: #fff5f5; color: #991b1b; padding: 13px 14px; border-radius: 16px; line-height: 1.5; font-size: 13px; margin-top: 12px; display: none; }
+    .log { background: #0b1220; color: #dbeafe; border-radius: 18px; padding: 13px 14px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; max-height: 140px; overflow: auto; display: none; margin-top: 12px; }
+    .candidate-list { display: grid; gap: 9px; margin-top: 12px; }
+    .candidate { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 15px; background: #fff; cursor: pointer; }
+    .candidate:hover { border-color: #bfdbfe; background: #f8fbff; }
+    .candidate input { width: auto; margin-top: 3px; }
+    .candidate strong { display:block; color: var(--blue); margin-bottom: 3px; }
+    .candidate span { color:#475569; font-size: 13px; line-height: 1.35; }
+
+    .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); border: 1px dashed #cbd5e1; border-radius: 20px; background: #fbfdff; }
+    .footer { margin: 24px auto 4px; color: var(--muted); font-size: 12px; line-height: 1.55; text-align: center; }
+    .footer a { color: var(--blue); text-decoration: none; font-weight: 800; }
+
+    @media (max-width: 1120px) { .grid { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(2, 1fr); } .panels { grid-template-columns: 1fr; } }
+    @media (max-width: 680px) { .shell { padding: 16px; } .hero { padding: 24px; } .hero-top { flex-direction: column; } .row, .row-3, .actions, .metrics { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow">US Trade Intelligence · Census API</div>
+          <h1>US Customs Data Query Tool</h1>
+          <p>Query U.S. import/export value and quantity by goods name or HS customs number, summarize trends, and download clean CSV files for follow-up analysis.</p>
+        </div>
+        <div class="status-pill"><span class="dot"></span><span id="apiStatus">Ready</span></div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <aside class="card">
+        <div class="card-header">
+          <h2>Query Setup</h2>
+          <small>monthly data</small>
+        </div>
+        <div class="card-body">
+          <div class="field">
+            <label for="apiKey">Census API key</label>
+            <input id="apiKey" type="password" placeholder="Paste your Census API key" autocomplete="off" />
+            <div class="hint">The Census API now requires a key. Do not hard-code API keys into a public GitHub Pages repo.</div>
+          </div>
+
+          <div class="field check">
+            <input id="rememberKey" type="checkbox" />
+            <span>Remember key locally in this browser</span>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="flow">Trade flow</label>
+              <select id="flow">
+                <option value="imports">Imports</option>
+                <option value="exports">Exports</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="valueBasis">Value basis</label>
+              <select id="valueBasis">
+                <option value="general">General imports / exports</option>
+                <option value="consumption">Imports for consumption</option>
+              </select>
+              <div class="hint">Consumption value applies only to imports.</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="queryText">Goods name or HS customs number</label>
+            <textarea id="queryText" placeholder="Examples: lithium battery, solar cells, 854143, 850760"></textarea>
+            <div class="hint">Numeric inputs are treated as HS codes. Text inputs will search matching commodity descriptions first.</div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="startPeriod">Start period</label>
+              <input id="startPeriod" type="month" />
+            </div>
+            <div class="field">
+              <label for="endPeriod">End period</label>
+              <input id="endPeriod" type="month" />
+            </div>
+          </div>
+
+          <div class="row-3">
+            <div class="field">
+              <label for="maxCodes">Max HS codes</label>
+              <input id="maxCodes" type="number" min="1" max="30" value="8" />
+            </div>
+            <div class="field">
+              <label for="countryCode">Country code</label>
+              <input id="countryCode" placeholder="All" />
+              <div class="hint">Optional Census CTY_CODE.</div>
+            </div>
+            <div class="field">
+              <label for="delayMs">Request delay</label>
+              <input id="delayMs" type="number" min="0" max="2000" value="120" />
+              <div class="hint">Milliseconds between API calls.</div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="secondary" id="searchCodesBtn">Search HS Codes</button>
+            <button class="primary" id="runBtn">Run Query</button>
+            <button class="ghost" id="demoBtn">Load Demo</button>
+            <button class="ghost" id="clearBtn">Clear</button>
+          </div>
+          <div id="errorBox" class="error"></div>
+          <div id="logBox" class="log"></div>
+
+          <div id="candidateBox" style="display:none; margin-top:18px;">
+            <label>Matched HS candidates</label>
+            <div class="hint">Selected codes will be included in the query.</div>
+            <div id="candidateList" class="candidate-list"></div>
+          </div>
+        </div>
+      </aside>
+
+      <section>
+        <div class="metrics">
+          <div class="metric"><div class="title">Total value</div><div class="value" id="mTotalValue">—</div><div class="delta" id="mTotalSub">Awaiting query</div></div>
+          <div class="metric"><div class="title">Latest month</div><div class="value" id="mLatestValue">—</div><div class="delta" id="mLatestSub">—</div></div>
+          <div class="metric"><div class="title">Quantity 1</div><div class="value" id="mQty">—</div><div class="delta" id="mQtySub">—</div></div>
+          <div class="metric"><div class="title">Countries / rows</div><div class="value" id="mRows">—</div><div class="delta" id="mRowsSub">—</div></div>
+        </div>
+
+        <div class="panels">
+          <div class="card chart-wrap">
+            <div class="card-header">
+              <h2>Monthly Trend</h2>
+              <small id="chartSubtitle">Value and quantity</small>
+            </div>
+            <div class="card-body">
+              <svg id="chart" viewBox="0 0 900 320" role="img" aria-label="Monthly trade data trend"></svg>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Auto Summary</h2>
+              <span class="badge" id="summaryBadge">No data</span>
+            </div>
+            <div class="card-body summary" id="summaryBox">
+              <div class="empty-state">Run a query to generate bullet-point takeaways.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:18px;">
+          <div class="card-header">
+            <h2>Results</h2>
+            <small id="tableNote">Aggregated by month and HS code</small>
+          </div>
+          <div class="card-body">
+            <div class="toolbar">
+              <button class="secondary" id="downloadAggBtn" disabled>Download aggregated CSV</button>
+              <button class="secondary" id="downloadRawBtn" disabled>Download raw country CSV</button>
+              <button class="ghost" id="copySummaryBtn" disabled>Copy summary</button>
+              <span class="badge" id="recordBadge">0 records</span>
+            </div>
+            <div class="table-wrap">
+              <table id="resultTable">
+                <thead>
+                  <tr><th>Period</th><th>HS code</th><th>Description</th><th class="num">Value USD</th><th class="num">Qty 1</th><th>Unit</th><th class="num">Qty 2</th><th>Unit 2</th></tr>
+                </thead>
+                <tbody><tr><td colspan="8" class="muted">No results yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <div class="footer">
+      Data source: U.S. Census Bureau International Trade API. This tool uses monthly public trade statistics, not bill-of-lading shipment-level records or importer names.
+    </div>
+  </main>
+
+  <script>
+    const ENDPOINTS = {
+      imports: 'https://api.census.gov/data/timeseries/intltrade/imports/hs',
+      exports: 'https://api.census.gov/data/timeseries/intltrade/exports/hs'
+    };
+
+    const els = {
+      apiKey: document.getElementById('apiKey'), rememberKey: document.getElementById('rememberKey'), flow: document.getElementById('flow'), valueBasis: document.getElementById('valueBasis'),
+      queryText: document.getElementById('queryText'), startPeriod: document.getElementById('startPeriod'), endPeriod: document.getElementById('endPeriod'), maxCodes: document.getElementById('maxCodes'),
+      countryCode: document.getElementById('countryCode'), delayMs: document.getElementById('delayMs'), searchCodesBtn: document.getElementById('searchCodesBtn'), runBtn: document.getElementById('runBtn'), demoBtn: document.getElementById('demoBtn'), clearBtn: document.getElementById('clearBtn'),
+      errorBox: document.getElementById('errorBox'), logBox: document.getElementById('logBox'), candidateBox: document.getElementById('candidateBox'), candidateList: document.getElementById('candidateList'),
+      mTotalValue: document.getElementById('mTotalValue'), mTotalSub: document.getElementById('mTotalSub'), mLatestValue: document.getElementById('mLatestValue'), mLatestSub: document.getElementById('mLatestSub'), mQty: document.getElementById('mQty'), mQtySub: document.getElementById('mQtySub'), mRows: document.getElementById('mRows'), mRowsSub: document.getElementById('mRowsSub'),
+      chart: document.getElementById('chart'), chartSubtitle: document.getElementById('chartSubtitle'), summaryBox: document.getElementById('summaryBox'), summaryBadge: document.getElementById('summaryBadge'), resultTable: document.getElementById('resultTable'),
+      downloadAggBtn: document.getElementById('downloadAggBtn'), downloadRawBtn: document.getElementById('downloadRawBtn'), copySummaryBtn: document.getElementById('copySummaryBtn'), recordBadge: document.getElementById('recordBadge'), tableNote: document.getElementById('tableNote'), apiStatus: document.getElementById('apiStatus')
+    };
+
+    let state = { rawRows: [], aggRows: [], candidates: [], summaryBullets: [] };
+
+    function initDefaults() {
+      const now = new Date();
+      const end = new Date(now.getFullYear(), now.getMonth() - 2, 1); // trade data usually lags publication
+      const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+      els.startPeriod.value = toMonth(start);
+      els.endPeriod.value = toMonth(end);
+      const saved = localStorage.getItem('census_api_key');
+      if (saved) { els.apiKey.value = saved; els.rememberKey.checked = true; }
+    }
+
+    function toMonth(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`; }
+    function showError(msg) { els.errorBox.style.display = msg ? 'block' : 'none'; els.errorBox.textContent = msg || ''; }
+    function setStatus(msg) { els.apiStatus.textContent = msg; }
+    function log(msg) { els.logBox.style.display = 'block'; els.logBox.textContent += `${new Date().toLocaleTimeString()} · ${msg}\n`; els.logBox.scrollTop = els.logBox.scrollHeight; }
+    function clearLog() { els.logBox.textContent = ''; els.logBox.style.display = 'none'; }
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const fmtCurrency = n => !Number.isFinite(n) ? '—' : '$' + compact(n);
+    const compact = n => {
+      const abs = Math.abs(n);
+      if (abs >= 1e12) return (n/1e12).toFixed(2) + 'T';
+      if (abs >= 1e9) return (n/1e9).toFixed(2) + 'B';
+      if (abs >= 1e6) return (n/1e6).toFixed(2) + 'M';
+      if (abs >= 1e3) return (n/1e3).toFixed(2) + 'K';
+      return Math.round(n).toLocaleString();
+    };
+    const pct = n => Number.isFinite(n) ? `${n >= 0 ? '+' : ''}${n.toFixed(1)}%` : 'n/a';
+    const num = v => v === undefined || v === null || v === '' ? 0 : Number(String(v).replace(/,/g,'')) || 0;
+
+    function monthsBetween(start, end) {
+      const [sy, sm] = start.split('-').map(Number); const [ey, em] = end.split('-').map(Number);
+      const out = []; let d = new Date(sy, sm - 1, 1); const last = new Date(ey, em - 1, 1);
+      while (d <= last) { out.push(toMonth(d)); d.setMonth(d.getMonth()+1); }
+      return out;
+    }
+
+    function getKey() {
+      const key = els.apiKey.value.trim();
+      if (els.rememberKey.checked && key) localStorage.setItem('census_api_key', key);
+      if (!els.rememberKey.checked) localStorage.removeItem('census_api_key');
+      return key;
+    }
+
+    async function fetchCensus(params, flow = els.flow.value) {
+      const key = getKey();
+      if (!key) throw new Error('Please paste a Census API key first. The Census API now requires a key for all queries.');
+      params.set('key', key);
+      const url = `${ENDPOINTS[flow]}?${params.toString()}`;
+      const res = await fetch(url);
+      const text = await res.text();
+      if (res.status === 204 || !text.trim()) throw new Error('Census API returned no rows for this parameter set.');
+      if (!res.ok) throw new Error(`Census API error ${res.status}: ${text.slice(0, 280)}`);
+      let json;
+      try { json = JSON.parse(text); } catch (e) { throw new Error(`Could not parse API response: ${text.slice(0, 280)}`); }
+      if (!Array.isArray(json) || !Array.isArray(json[0])) throw new Error('Unexpected Census API response format.');
+      return json;
+    }
+
+    function tableToObjects(data) {
+      const headers = data[0];
+      return data.slice(1).map(row => Object.fromEntries(headers.map((h, i) => [h, row[i] ?? ''])));
+    }
+
+    function fieldsFor(flow) {
+      if (flow === 'imports') return {
+        code: 'I_COMMODITY', desc: 'I_COMMODITY_LDESC',
+        // Do NOT request `time` in `get`; Census marks it as predicate-only.
+        // Request YEAR and MONTH instead so the UI can reconstruct the period.
+        get: 'I_COMMODITY,I_COMMODITY_LDESC,CTY_CODE,CTY_NAME,GEN_VAL_MO,CON_VAL_MO,GEN_QY1_MO,GEN_QY2_MO,CON_QY1_MO,CON_QY2_MO,UNIT_QY1,UNIT_QY2,YEAR,MONTH',
+        value: els.valueBasis.value === 'consumption' ? 'CON_VAL_MO' : 'GEN_VAL_MO',
+        qty1: els.valueBasis.value === 'consumption' ? 'CON_QY1_MO' : 'GEN_QY1_MO',
+        qty2: els.valueBasis.value === 'consumption' ? 'CON_QY2_MO' : 'GEN_QY2_MO'
+      };
+      return {
+        code: 'E_COMMODITY', desc: 'E_COMMODITY_LDESC',
+        // Do NOT request `time` in `get`; Census marks it as predicate-only.
+        get: 'E_COMMODITY,E_COMMODITY_LDESC,CTY_CODE,CTY_NAME,ALL_VAL_MO,QTY_1_MO,QTY_2_MO,UNIT_QY1,UNIT_QY2,YEAR,MONTH',
+        value: 'ALL_VAL_MO', qty1: 'QTY_1_MO', qty2: 'QTY_2_MO'
+      };
+    }
+
+    function addPeriodParams(params, period) {
+      const [year, month] = period.split('-');
+      // The HS examples from Census use YEAR and MONTH. This also avoids
+      // accidentally trying to return predicate-only `time` as a data column.
+      params.set('YEAR', year);
+      params.set('MONTH', month);
+      return params;
+    }
+
+    function periodFromObject(o) {
+      if (o.time) return o.time;
+      if (o.YEAR && o.MONTH) return `${o.YEAR}-${String(o.MONTH).padStart(2, '0')}`;
+      return '';
+    }
+
+    function parseQueryTokens() {
+      return els.queryText.value.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+    }
+
+    function isHsCode(x) { return /^\d{2,10}$/.test(x.replace(/\D/g,'')); }
+
+    async function searchCommodityCodes() {
+      clearLog(); showError(''); setStatus('Searching HS descriptions');
+      els.searchCodesBtn.disabled = true;
+      try {
+        const flow = els.flow.value; const f = fieldsFor(flow);
+        const tokens = parseQueryTokens();
+        if (!tokens.length) throw new Error('Enter a goods name or HS code first.');
+        const numeric = tokens.filter(isHsCode).map(x => x.replace(/\D/g,''));
+        const textTerms = tokens.filter(t => !isHsCode(t)).join(' ').toLowerCase().split(/\s+/).filter(Boolean);
+        const period = els.endPeriod.value;
+        const max = Number(els.maxCodes.value) || 8;
+
+        let candidates = numeric.map(code => ({ code, desc: 'User-entered HS code', score: 1000, checked: true }));
+        if (textTerms.length) {
+          log(`Scanning HS commodity descriptions for ${period}...`);
+          const params = addPeriodParams(new URLSearchParams({ get: `${f.code},${f.desc}` }), period);
+          const json = await fetchCensus(params, flow);
+          const seen = new Map();
+          tableToObjects(json).forEach(o => {
+            const code = o[f.code], desc = o[f.desc] || '';
+            if (!code || seen.has(code)) return;
+            const low = desc.toLowerCase();
+            let score = 0;
+            textTerms.forEach(term => { if (low.includes(term)) score += term.length + 8; });
+            if (score > 0) seen.set(code, { code, desc, score, checked: true });
+          });
+          candidates = candidates.concat([...seen.values()].sort((a,b) => b.score - a.score).slice(0, max));
+        }
+        state.candidates = dedupeByCode(candidates).slice(0, max);
+        renderCandidates();
+        if (!state.candidates.length) throw new Error('No matching HS codes found. Try a more specific keyword or enter an HS code directly.');
+        log(`Found ${state.candidates.length} HS candidate(s).`);
+        setStatus('HS candidates ready');
+      } catch (err) { showError(err.message); setStatus('Search failed'); }
+      finally { els.searchCodesBtn.disabled = false; }
+    }
+
+    function dedupeByCode(arr) { const m = new Map(); arr.forEach(x => { if (!m.has(x.code)) m.set(x.code, x); }); return [...m.values()]; }
+
+    function renderCandidates() {
+      els.candidateBox.style.display = state.candidates.length ? 'block' : 'none';
+      els.candidateList.innerHTML = state.candidates.map((c, i) => `
+        <label class="candidate">
+          <input type="checkbox" data-candidate-index="${i}" ${c.checked ? 'checked' : ''}>
+          <div><strong>${escapeHtml(c.code)}</strong><span>${escapeHtml(c.desc || '')}</span></div>
+        </label>`).join('');
+      els.candidateList.querySelectorAll('input').forEach(cb => cb.addEventListener('change', e => { state.candidates[Number(e.target.dataset.candidateIndex)].checked = e.target.checked; }));
+    }
+
+    async function runQuery() {
+      clearLog(); showError(''); setStatus('Running query');
+      els.runBtn.disabled = true; els.searchCodesBtn.disabled = true;
+      try {
+        const flow = els.flow.value; const f = fieldsFor(flow);
+        const months = monthsBetween(els.startPeriod.value, els.endPeriod.value);
+        if (!months.length) throw new Error('Invalid date range.');
+        if (months.length > 120) throw new Error('Please keep the date range within 120 months to avoid excessive API calls.');
+
+        let codes = selectedCodes();
+        if (!codes.length) {
+          const tokens = parseQueryTokens();
+          const numeric = tokens.filter(isHsCode).map(x => x.replace(/\D/g,''));
+          if (numeric.length) codes = numeric.map(code => ({ code, desc: 'User-entered HS code' }));
+          else {
+            await searchCommodityCodes();
+            codes = selectedCodes();
+          }
+        }
+        if (!codes.length) throw new Error('No HS code selected.');
+        const estimated = codes.length * months.length;
+        if (estimated > 360) throw new Error(`This query would make ${estimated} API calls. Reduce the period or max HS codes.`);
+
+        const raw = [];
+        const country = els.countryCode.value.trim();
+        const delay = Number(els.delayMs.value) || 0;
+        for (const codeObj of codes) {
+          for (const period of months) {
+            log(`Fetching ${flow} ${codeObj.code} ${period}...`);
+            const params = addPeriodParams(new URLSearchParams({ get: f.get }), period);
+            params.set(f.code, codeObj.code);
+            if (country) params.set('CTY_CODE', country);
+            try {
+              const json = await fetchCensus(params, flow);
+              const rows = tableToObjects(json).map(o => normalizeRow(o, flow, f));
+              raw.push(...rows);
+            } catch (err) {
+              // Census returns 204/no rows in some cases; keep going but log it.
+              log(`No data or error for ${codeObj.code} ${period}: ${err.message.slice(0, 120)}`);
+            }
+            if (delay) await sleep(delay);
+          }
+        }
+        if (!raw.length) throw new Error('No data returned. Check the HS code, period, country code, and API key.');
+        state.rawRows = raw;
+        state.aggRows = aggregateRows(raw);
+        renderAll();
+        setStatus('Query complete');
+      } catch (err) { showError(err.message); setStatus('Query failed'); }
+      finally { els.runBtn.disabled = false; els.searchCodesBtn.disabled = false; }
+    }
+
+    function selectedCodes() { return state.candidates.filter(c => c.checked).map(c => ({ code: c.code, desc: c.desc })); }
+
+    function normalizeRow(o, flow, f) {
+      return {
+        flow,
+        period: periodFromObject(o),
+        hs_code: o[f.code] || '',
+        description: o[f.desc] || '',
+        country_code: o.CTY_CODE || '',
+        country_name: o.CTY_NAME || '',
+        value_usd: num(o[f.value]),
+        value_basis: f.value,
+        import_consumption_value_usd: flow === 'imports' ? num(o.CON_VAL_MO) : '',
+        qty1: num(o[f.qty1]),
+        unit1: o.UNIT_QY1 || '',
+        qty2: num(o[f.qty2]),
+        unit2: o.UNIT_QY2 || ''
+      };
+    }
+
+    function aggregateRows(rows) {
+      const map = new Map();
+      rows.forEach(r => {
+        const key = `${r.period}|${r.hs_code}`;
+        if (!map.has(key)) map.set(key, { period: r.period, hs_code: r.hs_code, description: r.description, value_usd: 0, qty1: 0, unit1: r.unit1, qty2: 0, unit2: r.unit2, countries: new Set() });
+        const a = map.get(key);
+        a.value_usd += r.value_usd; a.qty1 += r.qty1; a.qty2 += r.qty2;
+        if (r.country_name) a.countries.add(r.country_name);
+        if (!a.description && r.description) a.description = r.description;
+        if (a.unit1 !== r.unit1) a.unit1 = 'mixed';
+        if (a.unit2 !== r.unit2) a.unit2 = 'mixed';
+      });
+      return [...map.values()].map(a => ({ ...a, country_count: a.countries.size, countries: undefined })).sort((a,b) => a.period.localeCompare(b.period) || b.value_usd - a.value_usd);
+    }
+
+    function renderAll() {
+      renderMetrics(); renderChart(); renderSummary(); renderTable();
+      els.downloadAggBtn.disabled = false; els.downloadRawBtn.disabled = false; els.copySummaryBtn.disabled = false;
+      els.recordBadge.textContent = `${state.aggRows.length.toLocaleString()} aggregated / ${state.rawRows.length.toLocaleString()} raw records`;
+    }
+
+    function renderMetrics() {
+      const total = state.aggRows.reduce((s,r) => s + r.value_usd, 0);
+      const periods = [...new Set(state.aggRows.map(r => r.period))].sort();
+      const latest = periods.at(-1);
+      const prev = periods.at(-2);
+      const latestValue = sumByPeriod(latest, 'value_usd');
+      const prevValue = sumByPeriod(prev, 'value_usd');
+      const mom = prevValue ? (latestValue / prevValue - 1) * 100 : NaN;
+      const totalQty = state.aggRows.reduce((s,r) => s + r.qty1, 0);
+      const countries = new Set(state.rawRows.map(r => r.country_name).filter(Boolean));
+      els.mTotalValue.textContent = fmtCurrency(total);
+      els.mTotalSub.textContent = `${periods[0]} to ${periods.at(-1)}`;
+      els.mLatestValue.textContent = fmtCurrency(latestValue);
+      els.mLatestSub.textContent = prev ? `MoM ${pct(mom)}` : 'Latest period only';
+      els.mLatestSub.className = `delta ${mom > 0 ? 'up' : mom < 0 ? 'down' : 'flat'}`;
+      els.mQty.textContent = compact(totalQty);
+      const units = [...new Set(state.aggRows.map(r => r.unit1).filter(Boolean))];
+      els.mQtySub.textContent = units.length === 1 ? units[0] : 'mixed units';
+      els.mRows.textContent = countries.size || '—';
+      els.mRowsSub.textContent = `${state.rawRows.length.toLocaleString()} country rows`;
+    }
+
+    function sumByPeriod(period, field) { return state.aggRows.filter(r => r.period === period).reduce((s,r) => s + (r[field] || 0), 0); }
+
+    function renderChart() {
+      const svg = els.chart; svg.innerHTML = '';
+      const periods = [...new Set(state.aggRows.map(r => r.period))].sort();
+      if (!periods.length) return;
+      const data = periods.map(p => ({ period: p, value: sumByPeriod(p, 'value_usd'), qty: sumByPeriod(p, 'qty1') }));
+      const W = 900, H = 320, L = 64, R = 30, T = 26, B = 48;
+      const maxV = Math.max(...data.map(d => d.value), 1);
+      const x = i => L + (data.length === 1 ? 0.5 : i / (data.length - 1)) * (W - L - R);
+      const y = v => H - B - (v / maxV) * (H - T - B);
+      const ns = 'http://www.w3.org/2000/svg';
+      const add = (tag, attrs, parent = svg) => { const el = document.createElementNS(ns, tag); Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k,v)); parent.appendChild(el); return el; };
+      for (let i=0;i<5;i++) {
+        const gy = T + i*(H-T-B)/4; add('line',{x1:L,y1:gy,x2:W-R,y2:gy,stroke:'#e2e8f0','stroke-width':1});
+        add('text',{x:10,y:gy+4,fill:'#64748b','font-size':11}, svg).textContent = fmtCurrency(maxV*(1-i/4));
+      }
+      const area = data.map((d,i) => `${i===0?'M':'L'} ${x(i)} ${y(d.value)}`).join(' ') + ` L ${x(data.length-1)} ${H-B} L ${x(0)} ${H-B} Z`;
+      add('path',{d:area,fill:'rgba(37,99,235,.10)'});
+      const line = data.map((d,i) => `${i===0?'M':'L'} ${x(i)} ${y(d.value)}`).join(' ');
+      add('path',{d:line,fill:'none',stroke:'#2563eb','stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round'});
+      data.forEach((d,i) => { add('circle',{cx:x(i),cy:y(d.value),r:5,fill:'#ffffff',stroke:'#1d4ed8','stroke-width':3}); });
+      const step = Math.max(1, Math.ceil(data.length/8));
+      data.forEach((d,i) => { if (i % step === 0 || i === data.length-1) add('text',{x:x(i),y:H-18,fill:'#64748b','font-size':11,'text-anchor':'middle'}, svg).textContent = d.period; });
+      els.chartSubtitle.textContent = `${els.flow.value === 'imports' ? 'Import' : 'Export'} value trend · ${state.aggRows.length} rows`;
+    }
+
+    function renderSummary() {
+      const periods = [...new Set(state.aggRows.map(r => r.period))].sort();
+      const latest = periods.at(-1), prev = periods.at(-2), first = periods[0];
+      const latestValue = sumByPeriod(latest, 'value_usd'), prevValue = sumByPeriod(prev, 'value_usd'), firstValue = sumByPeriod(first, 'value_usd');
+      const mom = prevValue ? (latestValue / prevValue - 1) * 100 : NaN;
+      const rangeGrowth = firstValue && periods.length > 1 ? (latestValue / firstValue - 1) * 100 : NaN;
+      const topCode = [...state.aggRows.filter(r => r.period === latest)].sort((a,b)=>b.value_usd-a.value_usd)[0];
+      const topMonth = periods.map(p => ({ period:p, value:sumByPeriod(p,'value_usd') })).sort((a,b)=>b.value-a.value)[0];
+      const topCountries = topCountriesLatest(latest).slice(0,3);
+      const units = [...new Set(state.aggRows.map(r => r.unit1).filter(Boolean))];
+      const flowLabel = els.flow.value === 'imports' ? 'imports' : 'exports';
+      const bullets = [
+        `<b>Latest ${latest} ${flowLabel} value was ${fmtCurrency(latestValue)}</b>${prev ? `, ${mom >= 0 ? 'up' : 'down'} ${pct(Math.abs(mom))} versus ${prev}.` : '.'}`,
+        `For the selected period, total reported value reached <b>${fmtCurrency(state.aggRows.reduce((s,r)=>s+r.value_usd,0))}</b> across <b>${state.aggRows.length}</b> monthly HS-code observations.`,
+        topCode ? `The largest latest-period HS contributor was <b>${escapeHtml(topCode.hs_code)}</b>, ${escapeHtml(shorten(topCode.description, 86))}, at <b>${fmtCurrency(topCode.value_usd)}</b>.` : '',
+        Number.isFinite(rangeGrowth) ? `Value changed <b>${pct(rangeGrowth)}</b> from ${first} to ${latest}, indicating ${rangeGrowth >= 10 ? 'a clear upward trend' : rangeGrowth <= -10 ? 'a clear downward trend' : 'a relatively range-bound trend'} over the selected window.` : '',
+        topMonth ? `The strongest month in the query window was <b>${topMonth.period}</b>, with total value of <b>${fmtCurrency(topMonth.value)}</b>.` : '',
+        topCountries.length ? `Top country contributors in ${latest}: <b>${topCountries.map(c => `${escapeHtml(c.country)} ${fmtCurrency(c.value)}`).join('</b>, <b>')}</b>.` : 'Country-level contributor data was not available or was not requested.',
+        units.length > 1 ? 'Quantity analysis uses mixed units across selected HS codes, so volume totals should be interpreted cautiously.' : `Quantity 1 is reported in <b>${escapeHtml(units[0] || 'the API unit')}</b>; download the raw CSV to inspect country-level quantities.`
+      ].filter(Boolean);
+      state.summaryBullets = bullets.map(stripHtml);
+      els.summaryBox.innerHTML = `<ul>${bullets.map(b => `<li>${b}</li>`).join('')}</ul>`;
+      els.summaryBadge.textContent = `${bullets.length} bullets`;
+    }
+
+    function topCountriesLatest(period) {
+      const map = new Map();
+      state.rawRows.filter(r => r.period === period).forEach(r => {
+        const name = r.country_name || 'Unspecified';
+        map.set(name, (map.get(name) || 0) + r.value_usd);
+      });
+      return [...map.entries()].map(([country,value]) => ({country,value})).sort((a,b)=>b.value-a.value);
+    }
+
+    function renderTable() {
+      const rows = state.aggRows.slice().sort((a,b) => b.period.localeCompare(a.period) || b.value_usd - a.value_usd);
+      els.resultTable.querySelector('tbody').innerHTML = rows.map(r => `
+        <tr>
+          <td>${escapeHtml(r.period)}</td><td><b>${escapeHtml(r.hs_code)}</b></td><td>${escapeHtml(shorten(r.description, 110))}</td>
+          <td class="num">${Math.round(r.value_usd).toLocaleString()}</td><td class="num">${Math.round(r.qty1).toLocaleString()}</td><td>${escapeHtml(r.unit1 || '')}</td>
+          <td class="num">${Math.round(r.qty2).toLocaleString()}</td><td>${escapeHtml(r.unit2 || '')}</td>
+        </tr>`).join('');
+      els.tableNote.textContent = `${els.flow.value} · ${els.startPeriod.value} to ${els.endPeriod.value}`;
+    }
+
+    function downloadCsv(rows, filename) {
+      if (!rows.length) return;
+      const headers = Object.keys(rows[0]);
+      const csv = [headers.join(','), ...rows.map(r => headers.map(h => csvCell(r[h])).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+    }
+    function csvCell(v) { const s = v === undefined || v === null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; }
+    function escapeHtml(str) { return String(str ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+    function stripHtml(str) { const tmp = document.createElement('div'); tmp.innerHTML = str; return tmp.textContent || tmp.innerText || ''; }
+    function shorten(str, len) { str = String(str || ''); return str.length > len ? str.slice(0, len - 1) + '…' : str; }
+
+    function loadDemo() {
+      showError(''); clearLog(); setStatus('Demo loaded');
+      const demo = [
+        ['2025-07','850760','Lithium-ion accumulators','China',820000000,18800000,'NO'], ['2025-07','850760','Lithium-ion accumulators','Korea, South',190000000,3900000,'NO'],
+        ['2025-08','850760','Lithium-ion accumulators','China',780000000,17600000,'NO'], ['2025-08','850760','Lithium-ion accumulators','Korea, South',220000000,4200000,'NO'],
+        ['2025-09','850760','Lithium-ion accumulators','China',910000000,19700000,'NO'], ['2025-09','850760','Lithium-ion accumulators','Korea, South',240000000,4700000,'NO'],
+        ['2025-10','850760','Lithium-ion accumulators','China',960000000,20300000,'NO'], ['2025-10','850760','Lithium-ion accumulators','Korea, South',210000000,4100000,'NO'],
+        ['2025-11','850760','Lithium-ion accumulators','China',1020000000,21600000,'NO'], ['2025-11','850760','Lithium-ion accumulators','Korea, South',260000000,4900000,'NO'],
+        ['2025-12','850760','Lithium-ion accumulators','China',1080000000,22400000,'NO'], ['2025-12','850760','Lithium-ion accumulators','Korea, South',300000000,5400000,'NO']
+      ];
+      state.rawRows = demo.map(d => ({ flow:'imports', period:d[0], hs_code:d[1], description:d[2], country_name:d[3], country_code:'', value_usd:d[4], value_basis:'GEN_VAL_MO', import_consumption_value_usd:'', qty1:d[5], unit1:d[6], qty2:0, unit2:'' }));
+      state.aggRows = aggregateRows(state.rawRows); renderAll();
+    }
+
+    function clearAll() {
+      state = { rawRows: [], aggRows: [], candidates: [], summaryBullets: [] };
+      els.candidateBox.style.display = 'none'; els.candidateList.innerHTML = ''; showError(''); clearLog(); setStatus('Ready');
+      els.mTotalValue.textContent = '—'; els.mTotalSub.textContent = 'Awaiting query'; els.mLatestValue.textContent = '—'; els.mLatestSub.textContent = '—'; els.mQty.textContent = '—'; els.mQtySub.textContent = '—'; els.mRows.textContent = '—'; els.mRowsSub.textContent = '—';
+      els.summaryBox.innerHTML = '<div class="empty-state">Run a query to generate bullet-point takeaways.</div>'; els.summaryBadge.textContent = 'No data'; els.chart.innerHTML = '';
+      els.resultTable.querySelector('tbody').innerHTML = '<tr><td colspan="8" class="muted">No results yet.</td></tr>'; els.recordBadge.textContent = '0 records'; els.downloadAggBtn.disabled = true; els.downloadRawBtn.disabled = true; els.copySummaryBtn.disabled = true;
+    }
+
+    els.searchCodesBtn.addEventListener('click', searchCommodityCodes);
+    els.runBtn.addEventListener('click', runQuery);
+    els.demoBtn.addEventListener('click', loadDemo);
+    els.clearBtn.addEventListener('click', clearAll);
+    els.downloadAggBtn.addEventListener('click', () => downloadCsv(state.aggRows, `us_trade_aggregated_${els.flow.value}_${els.startPeriod.value}_${els.endPeriod.value}.csv`));
+    els.downloadRawBtn.addEventListener('click', () => downloadCsv(state.rawRows, `us_trade_raw_country_${els.flow.value}_${els.startPeriod.value}_${els.endPeriod.value}.csv`));
+    els.copySummaryBtn.addEventListener('click', async () => { await navigator.clipboard.writeText(state.summaryBullets.map(x => `- ${x}`).join('\n')); setStatus('Summary copied'); });
+    els.flow.addEventListener('change', () => { els.valueBasis.disabled = els.flow.value === 'exports'; if (els.flow.value === 'exports') els.valueBasis.value = 'general'; });
+    els.rememberKey.addEventListener('change', getKey);
+    initDefaults();
+  </script>
+</body>
+</html>
