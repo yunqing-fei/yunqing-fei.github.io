@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Hub</title>
+  <meta name="description" content="A minimalist homepage for research, data tools and market dashboards." />
+  <style>
+    :root {
+      --bg: #f3f3f1;
+      --text: #111111;
+      --muted: #777777;
+      --soft: #dfdfdc;
+      --soft-2: #e8e8e5;
+      --link: #5f5f5f;
+      --link-hover: #111111;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      font-size: 14px;
+      letter-spacing: -0.015em;
+      overflow-x: hidden;
+    }
+
+    .page {
+      position: relative;
+      min-height: 100vh;
+      padding: clamp(34px, 6vw, 74px) clamp(26px, 6.4vw, 72px);
+      display: grid;
+      grid-template-columns: 0.82fr 1fr 1fr 1.2fr;
+      align-items: center;
+      gap: clamp(34px, 5vw, 92px);
+    }
+
+    .intro,
+    .column {
+      position: relative;
+      z-index: 2;
+    }
+
+    .intro {
+      align-self: center;
+      transform: translateY(-2px);
+    }
+
+    .name {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 720;
+      letter-spacing: -0.025em;
+      line-height: 1.35;
+    }
+
+    .small-note {
+      margin: 22px 0 0;
+      max-width: 150px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    details {
+      width: min(230px, 100%);
+      margin: 0 0 24px;
+    }
+
+    summary {
+      list-style: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 7px;
+      color: var(--text);
+      font-weight: 720;
+      font-size: 14px;
+      line-height: 1.35;
+      user-select: none;
+      outline: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary::after {
+      content: "+";
+      color: var(--muted);
+      font-weight: 500;
+      transform: translateY(-1px);
+      transition: transform 160ms ease, color 160ms ease;
+    }
+
+    details[open] summary::after {
+      content: "−";
+      color: var(--text);
+    }
+
+    .links {
+      margin-top: 13px;
+      display: grid;
+      gap: 11px;
+      animation: fadeIn 160ms ease-out both;
+    }
+
+    a {
+      color: var(--link);
+      text-decoration: none;
+      line-height: 1.35;
+      transition: color 160ms ease, transform 160ms ease;
+    }
+
+    a:hover {
+      color: var(--link-hover);
+    }
+
+    .links a {
+      display: block;
+      width: fit-content;
+      font-size: 14px;
+    }
+
+    .links a::after {
+      content: "";
+      display: block;
+      width: 0;
+      height: 1px;
+      margin-top: 2px;
+      background: currentColor;
+      transition: width 180ms ease;
+    }
+
+    .links a:hover::after {
+      width: 100%;
+    }
+
+    .flower-wrap {
+      position: relative;
+      z-index: 1;
+      justify-self: end;
+      width: min(330px, 34vw);
+      aspect-ratio: 1;
+      opacity: 0.92;
+    }
+
+    .flower {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.018));
+    }
+
+    .flower path,
+    .flower circle,
+    .flower line {
+      vector-effect: non-scaling-stroke;
+    }
+
+    .footer {
+      position: fixed;
+      left: clamp(26px, 6.4vw, 72px);
+      right: clamp(26px, 6.4vw, 72px);
+      bottom: clamp(22px, 4.5vw, 46px);
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: -0.005em;
+      pointer-events: none;
+    }
+
+    .footer a {
+      pointer-events: auto;
+      color: var(--muted);
+    }
+
+    .footer a:hover {
+      color: var(--text);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-3px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 960px) {
+      .page {
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        padding-top: 70px;
+        padding-bottom: 120px;
+      }
+
+      .intro {
+        grid-column: 1 / -1;
+      }
+
+      .small-note {
+        max-width: 360px;
+      }
+
+      .flower-wrap {
+        position: fixed;
+        right: 24px;
+        bottom: 66px;
+        width: min(230px, 44vw);
+        opacity: 0.52;
+      }
+    }
+
+    @media (max-width: 560px) {
+      body {
+        font-size: 14px;
+      }
+
+      .page {
+        min-height: auto;
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding: 52px 28px 136px;
+      }
+
+      details {
+        margin-bottom: 8px;
+      }
+
+      .flower-wrap {
+        width: 220px;
+        right: -18px;
+        bottom: 60px;
+        opacity: 0.38;
+      }
+
+      .footer {
+        display: block;
+        line-height: 1.8;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <section class="intro" aria-label="Introduction">
+      <p class="name">Hello, this is<br />Research Hub</p>
+      <p class="small-note">minimal links for market data, trade data and research tools</p>
+    </section>
+
+    <section class="column" aria-label="Data tools">
+      <details open>
+        <summary>Data tools</summary>
+        <div class="links">
+          <!-- Replace # with your real links later -->
+          <a href="#">US customs query</a>
+          <a href="#">HKEx dashboard</a>
+          <a href="#">Data library</a>
+        </div>
+      </details>
+    </section>
+
+    <section class="column" aria-label="Research">
+      <details open>
+        <summary>Research</summary>
+        <div class="links">
+          <!-- Replace # with your real links later -->
+          <a href="#">Market notes</a>
+          <a href="#">Sector maps</a>
+          <a href="#">Project archive</a>
+        </div>
+      </details>
+    </section>
+
+    <section class="column" aria-label="Connect">
+      <details open>
+        <summary>Connect</summary>
+        <div class="links">
+          <!-- Replace # with your real links later -->
+          <a href="#">GitHub</a>
+          <a href="#">Read.cv</a>
+          <a href="mailto:your-email@example.com">Copy email</a>
+        </div>
+      </details>
+    </section>
+
+    <aside class="flower-wrap" aria-hidden="true">
+      <svg class="flower" viewBox="0 0 360 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g transform="translate(180 180)">
+          <path d="M0 -20C24 -72 54 -92 81 -81C108 -70 111 -35 69 -3C109 -8 137 6 142 36C147 66 119 88 69 67C101 106 98 139 72 153C45 168 15 148 0 93C-15 148 -45 168 -72 153C-98 139 -101 106 -69 67C-119 88 -147 66 -142 36C-137 6 -109 -8 -69 -3C-111 -35 -108 -70 -81 -81C-54 -92 -24 -72 0 -20Z"
+            fill="#dededb"/>
+          <circle cx="0" cy="0" r="24" fill="#f7f7f5"/>
+          <circle cx="0" cy="0" r="16" fill="#e7e7e3"/>
+
+          <g stroke="#f8f8f6" stroke-width="2" stroke-linecap="round" opacity="0.88">
+            <line x1="0" y1="-18" x2="0" y2="-78"/>
+            <line x1="12" y1="-14" x2="46" y2="-58"/>
+            <line x1="18" y1="-2" x2="76" y2="-2"/>
+            <line x1="12" y1="14" x2="46" y2="58"/>
+            <line x1="0" y1="18" x2="0" y2="78"/>
+            <line x1="-12" y1="14" x2="-46" y2="58"/>
+            <line x1="-18" y1="-2" x2="-76" y2="-2"/>
+            <line x1="-12" y1="-14" x2="-46" y2="-58"/>
+          </g>
+
+          <g fill="#f8f8f6" opacity="0.9">
+            <circle cx="0" cy="-82" r="4"/>
+            <circle cx="50" cy="-62" r="4"/>
+            <circle cx="82" cy="-2" r="4"/>
+            <circle cx="50" cy="62" r="4"/>
+            <circle cx="0" cy="82" r="4"/>
+            <circle cx="-50" cy="62" r="4"/>
+            <circle cx="-82" cy="-2" r="4"/>
+            <circle cx="-50" cy="-62" r="4"/>
+          </g>
+
+          <g fill="#f8f8f6" opacity="0.55">
+            <circle cx="-42" cy="-22" r="3"/>
+            <circle cx="42" cy="-22" r="3"/>
+            <circle cx="-42" cy="22" r="3"/>
+            <circle cx="42" cy="22" r="3"/>
+          </g>
+        </g>
+      </svg>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <span>© <span id="year"></span> Research Hub</span>
+    <span>Replace placeholder links manually</span>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Optional: one-click email copy if you later replace this with your real email.
+    document.querySelectorAll('a[href^="mailto:"]').forEach((link) => {
+      link.addEventListener("click", (event) => {
+        const email = link.getAttribute("href").replace("mailto:", "");
+        if (email && email !== "your-email@example.com" && navigator.clipboard) {
+          event.preventDefault();
+          navigator.clipboard.writeText(email);
+          link.textContent = "Email copied";
+          setTimeout(() => {
+            link.textContent = "Copy email";
+          }, 1200);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
