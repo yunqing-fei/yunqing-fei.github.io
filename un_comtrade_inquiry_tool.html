@@ -175,7 +175,7 @@
         <div class="status-row"><span>Endpoint</span><strong class="mono">/data/v1/get/C/&lt;freq&gt;/HS</strong></div>
         <div class="status-row"><span>Country reference</span><strong id="countryStatus">Loading...</strong></div>
         <div class="status-row"><span>Saved query history</span><strong id="historyCount">0</strong></div>
-        <div class="status-row"><span>Mode</span><strong id="modeStatus">Public preview / optional key</strong></div>
+        <div class="status-row"><span>Mode</span><strong id="modeStatus">API key required</strong></div>
       </div>
     </div>
   </header>
@@ -187,9 +187,9 @@
           <h2>1) Query setup</h2>
           <div class="grid">
             <div class="full">
-              <label for="apiKey">UN Comtrade API key (optional)</label>
-              <input id="apiKey" type="password" autocomplete="off" placeholder="Paste Primary Key here for higher record limits" />
-              <div class="hint">Without a key, Comtrade preview access is usually limited. The key is kept only in this browser if you click “Save key locally”.</div>
+              <label for="apiKey">UN Comtrade API key / subscription key (required)</label>
+              <input id="apiKey" type="password" autocomplete="off" placeholder="Paste your Primary Key / subscription key here" />
+              <div class="hint">Comtrade API calls require a subscription key. The key is kept only in this browser if you click “Save key locally”.</div>
             </div>
             <div>
               <label for="countrySearch">Search country</label>
@@ -244,6 +244,14 @@
               <div class="hint">Default <span class="mono">0</span> = World.</div>
             </div>
             <div>
+              <label for="keyMode">Send API key as</label>
+              <select id="keyMode">
+                <option value="query">URL query: subscription-key</option>
+                <option value="header">HTTP header: Ocp-Apim-Subscription-Key</option>
+              </select>
+              <div class="hint">Use URL query first. If Comtrade changes policy, try the header option.</div>
+            </div>
+            <div>
               <label for="maxRecords">Max records</label>
               <input id="maxRecords" type="number" min="1" max="250000" value="500" />
             </div>
@@ -288,7 +296,7 @@
 
         <div class="panel">
           <h2>Notes</h2>
-          <p class="footer-note">This is a front-end tool. Browser requests may be affected by UN Comtrade rate limits, API-key status, local network policy, or CORS behavior. If the browser blocks a request, copy the generated API URL from the diagnostics section and test it in the browser or Postman.</p>
+          <p class="footer-note">This is a front-end tool. UN Comtrade API access requires a subscription key. Browser requests may also be affected by rate limits, local network policy, or CORS behavior. If the browser blocks a request, copy the generated API URL from the diagnostics section and test it in the browser or Postman.</p>
         </div>
       </section>
 
@@ -400,7 +408,7 @@
       apiKey: $("apiKey"), countrySearch: $("countrySearch"), reporterCode: $("reporterCode"),
       flowCode: $("flowCode"), freqCode: $("freqCode"), startMonth: $("startMonth"), endMonth: $("endMonth"),
       startYear: $("startYear"), endYear: $("endYear"), cmdCode: $("cmdCode"), volumeField: $("volumeField"),
-      partnerCode: $("partnerCode"), maxRecords: $("maxRecords"), requestDelay: $("requestDelay"), runBtn: $("runBtn"),
+      partnerCode: $("partnerCode"), keyMode: $("keyMode"), maxRecords: $("maxRecords"), requestDelay: $("requestDelay"), runBtn: $("runBtn"),
       saveKeyBtn: $("saveKeyBtn"), clearKeyBtn: $("clearKeyBtn"), resetBtn: $("resetBtn"), message: $("message"),
       progress: $("progress"), frequentCodes: $("frequentCodes"), historyCodes: $("historyCodes"), addQuickBtn: $("addQuickBtn"),
       customHsCode: $("customHsCode"), customHsLabel: $("customHsLabel"), clearHistoryBtn: $("clearHistoryBtn"),
@@ -607,7 +615,7 @@
       return chunks;
     }
 
-    function buildUrl(periods) {
+    function buildRequest(periods) {
       const freq = els.freqCode.value;
       const url = new URL(`${API_BASE}/${freq}/HS`);
       const hs = sanitizeHs(els.cmdCode.value);
@@ -622,11 +630,19 @@
         motCode: "0",
         period: periods.join(","),
         includeDesc: "TRUE",
-        maxRecords: String(Math.min(Number(els.maxRecords.value) || 500, apiKey ? 250000 : 500))
+        maxRecords: String(Math.min(Number(els.maxRecords.value) || 500, 250000))
       };
       for (const [k,v] of Object.entries(params)) url.searchParams.set(k, v);
-      if (apiKey) url.searchParams.set("subscription-key", apiKey);
-      return url.toString();
+
+      const options = { method: "GET", cache: "no-store", headers: {} };
+      if (els.keyMode.value === "header") {
+        options.headers["Ocp-Apim-Subscription-Key"] = apiKey;
+      } else {
+        url.searchParams.set("subscription-key", apiKey);
+      }
+
+      const safeUrl = url.toString().replace(/subscription-key=[^&]+/i, "subscription-key=***");
+      return { url: url.toString(), safeUrl, options };
     }
 
     async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -644,8 +660,10 @@
         const periods = periodList();
         if (periods.length > 144) throw new Error("Please keep one browser query within 144 monthly periods / annual periods. For larger downloads, use bulk API or a Python script.");
         const apiKey = els.apiKey.value.trim();
-        els.modeStatus.textContent = apiKey ? "API key query" : "Public preview query";
-        if (!apiKey && Number(els.maxRecords.value) > 500) els.maxRecords.value = "500";
+        if (!apiKey) {
+          throw new Error("UN Comtrade returned 401 because no subscription key was provided. Paste your Comtrade API key in the API key field first. You can get one from the UN Comtrade Developer Portal / API Management page after registration.");
+        }
+        els.modeStatus.textContent = els.keyMode.value === "header" ? "API key query · header" : "API key query · URL query";
         const chunks = chunkArray(periods, 12);
         els.runBtn.disabled = true;
         els.downloadCsvBtn.disabled = true;
@@ -653,9 +671,9 @@
         showMessage(`Running ${chunks.length} API call(s) for ${periods.length} period(s)...`, "info");
         setProgress(0, chunks.length);
         for (let i = 0; i < chunks.length; i++) {
-          const url = buildUrl(chunks[i]);
-          lastApiUrls.push(url.replace(/subscription-key=[^&]+/i, "subscription-key=***"));
-          const resp = await fetch(url, { method: "GET", cache: "no-store" });
+          const req = buildRequest(chunks[i]);
+          lastApiUrls.push(req.safeUrl);
+          const resp = await fetch(req.url, req.options);
           const text = await resp.text();
           let json;
           try { json = JSON.parse(text); } catch { json = { error: text }; }
@@ -940,7 +958,7 @@
       });
       els.apiKey.addEventListener("input", () => {
         const has = !!els.apiKey.value.trim();
-        els.modeStatus.textContent = has ? "API key query" : "Public preview / optional key";
+        els.modeStatus.textContent = has ? "API key query" : "API key required";
         els.maxRecords.value = has ? "250000" : "500";
         els.requestDelay.value = has ? "0" : "1100";
       });
