@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UN Comtrade Trade Data Inquiry Tool</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #6b7280;
+      --line: #d9e0ec;
+      --blue: #0b5fff;
+      --blue-2: #eff5ff;
+      --green: #0f766e;
+      --red: #b42318;
+      --shadow: 0 16px 40px rgba(23, 32, 51, 0.08);
+      --radius: 18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, #eaf2ff 0, #f5f7fb 34%, #f7f9fc 100%);
+      color: var(--ink);
+      font-family: var(--sans);
+      min-height: 100vh;
+    }
+    header {
+      padding: 32px clamp(18px, 4vw, 48px) 20px;
+    }
+    .hero {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+    .hero-card, .panel {
+      background: rgba(255,255,255,0.88);
+      border: 1px solid rgba(217,224,236,.75);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+    }
+    .hero-card { padding: 28px; }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+    }
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 900px;
+      font-size: 15px;
+    }
+    .status-card { padding: 22px; display:flex; flex-direction:column; gap:12px; }
+    .status-row { display:flex; justify-content:space-between; gap:10px; align-items:center; color: var(--muted); font-size: 13px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:var(--blue-2); color:#0747b6; font-weight:700; font-size:12px; }
+    .dot { width:8px; height:8px; border-radius:50%; background:var(--green); display:inline-block; }
+    main { max-width: 1280px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 48px) 48px; }
+    .layout { display:grid; grid-template-columns: 420px minmax(0,1fr); gap:18px; align-items:start; }
+    .panel { padding: 20px; margin-bottom: 18px; }
+    .panel h2 { margin:0 0 14px; font-size:17px; letter-spacing:-0.02em; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .full { grid-column: 1 / -1; }
+    label { display:block; font-size:12px; color:var(--muted); margin:0 0 6px; font-weight:650; }
+    input, select, textarea, button {
+      font: inherit;
+    }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 12px;
+      padding: 11px 12px;
+      color: var(--ink);
+      outline: none;
+      transition: border .15s, box-shadow .15s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: rgba(11,95,255,.55); box-shadow: 0 0 0 4px rgba(11,95,255,.10); }
+    textarea { min-height: 96px; resize: vertical; font-family: var(--mono); font-size: 12px; }
+    .hint { font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 14px;
+      background: #e9eef8;
+      color: #172033;
+      cursor: pointer;
+      font-weight: 750;
+      transition: transform .08s ease, opacity .15s, background .15s;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: .55; cursor: not-allowed; transform:none; }
+    .primary { background: var(--blue); color:#fff; }
+    .danger { background:#fff1f0; color:var(--red); }
+    .ghost { background:#f7f9fc; border:1px solid var(--line); }
+    .small { padding: 8px 10px; border-radius: 10px; font-size: 12px; }
+    .quick-wrap { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip {
+      border: 1px solid #cfd9ea;
+      background: #fff;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: #26324a;
+      cursor: pointer;
+      max-width: 100%;
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+    }
+    .chip strong { font-family:var(--mono); color:#0b5fff; }
+    .chip:hover { background: var(--blue-2); }
+    .tabs { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
+    .tab { background:#f7f9fc; border:1px solid var(--line); color:#4b5563; }
+    .tab.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+    .summary { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+    .metric { background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px; }
+    .metric .label { color:var(--muted); font-size:12px; margin-bottom:6px; }
+    .metric .value { font-size:clamp(18px,2.4vw,28px); font-weight:800; letter-spacing:-.03em; overflow-wrap:anywhere; }
+    .metric .sub { color:var(--muted); font-size:12px; margin-top:6px; }
+    .result-bar { display:flex; gap:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .message { border-radius: 14px; padding: 12px 14px; font-size:13px; line-height:1.5; display:none; }
+    .message.show { display:block; }
+    .message.info { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .message.error { background:#fff1f0; color:#b42318; border:1px solid #fecaca; }
+    .table-wrap { overflow:auto; border:1px solid var(--line); border-radius:16px; background:#fff; max-height: 570px; }
+    table { width:100%; border-collapse:collapse; min-width: 1120px; font-size:12px; }
+    th, td { padding:10px 12px; border-bottom:1px solid #eef2f7; text-align:right; white-space:nowrap; }
+    th { background:#f8fafc; position:sticky; top:0; z-index:1; color:#4b5563; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+    th:first-child, td:first-child, th:nth-child(2), td:nth-child(2), th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4), th:nth-child(5), td:nth-child(5) { text-align:left; }
+    tr:hover td { background:#fbfdff; }
+    .mono { font-family:var(--mono); }
+    canvas { width:100%; height:260px; background:#fff; border:1px solid var(--line); border-radius:16px; display:block; }
+    .footer-note { color:var(--muted); font-size:12px; line-height:1.6; margin: 12px 0 0; }
+    .progress {
+      height:10px;
+      width:100%;
+      background:#e9eef8;
+      border-radius:999px;
+      overflow:hidden;
+      margin-top:12px;
+      display:none;
+    }
+    .progress.show { display:block; }
+    .progress > div { height:100%; width:0%; background:linear-gradient(90deg, #0b5fff, #0f766e); transition:width .2s; }
+    details { border:1px solid var(--line); border-radius:14px; padding:12px; background:#fff; }
+    summary { cursor:pointer; font-weight:750; color:#334155; }
+    .splitline { display:flex; gap:8px; align-items:center; }
+    .splitline input { flex:1; }
+    @media (max-width: 980px) {
+      .hero, .layout { grid-template-columns: 1fr; }
+      .summary { grid-template-columns:1fr; }
+      .grid { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero">
+      <div class="hero-card">
+        <div class="pill"><span class="dot"></span> HTML + UN Comtrade API</div>
+        <h1>UN Comtrade Trade Data Inquiry Tool</h1>
+        <p class="subtitle">Query monthly or annual merchandise trade by reporter country, import/export flow, HS code, and period range. Results include amount, volume, and calculated average price. Frequently used HS codes and your previous HS queries are stored locally in this browser.</p>
+      </div>
+      <div class="status-card hero-card">
+        <div class="status-row"><span>Endpoint</span><strong class="mono">/data/v1/get/C/&lt;freq&gt;/HS</strong></div>
+        <div class="status-row"><span>Country reference</span><strong id="countryStatus">Loading...</strong></div>
+        <div class="status-row"><span>Saved query history</span><strong id="historyCount">0</strong></div>
+        <div class="status-row"><span>Mode</span><strong id="modeStatus">Public preview / optional key</strong></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+      <section>
+        <div class="panel">
+          <h2>1) Query setup</h2>
+          <div class="grid">
+            <div class="full">
+              <label for="apiKey">UN Comtrade API key (optional)</label>
+              <input id="apiKey" type="password" autocomplete="off" placeholder="Paste Primary Key here for higher record limits" />
+              <div class="hint">Without a key, Comtrade preview access is usually limited. The key is kept only in this browser if you click “Save key locally”.</div>
+            </div>
+            <div>
+              <label for="countrySearch">Search country</label>
+              <input id="countrySearch" type="search" placeholder="Type China, UAE, Qatar..." />
+            </div>
+            <div>
+              <label for="reporterCode">Reporter country</label>
+              <select id="reporterCode"></select>
+            </div>
+            <div>
+              <label for="flowCode">Trade flow</label>
+              <select id="flowCode">
+                <option value="M">Import</option>
+                <option value="X">Export</option>
+              </select>
+            </div>
+            <div>
+              <label for="freqCode">Frequency</label>
+              <select id="freqCode">
+                <option value="M">Monthly</option>
+                <option value="A">Annual</option>
+              </select>
+            </div>
+            <div>
+              <label for="startMonth">Start date</label>
+              <input id="startMonth" type="month" />
+              <input id="startYear" type="number" min="1962" max="2100" style="display:none" />
+            </div>
+            <div>
+              <label for="endMonth">End date</label>
+              <input id="endMonth" type="month" />
+              <input id="endYear" type="number" min="1962" max="2100" style="display:none" />
+            </div>
+            <div class="full">
+              <label for="cmdCode">Item / HS code</label>
+              <input id="cmdCode" class="mono" placeholder="e.g. 284420 or 284410,284420 or TOTAL" />
+              <div class="hint">Comma-separated HS codes are supported. Use <span class="mono">TOTAL</span> for all commodities. Keep the query narrow for faster response.</div>
+            </div>
+            <div>
+              <label for="volumeField">Volume basis</label>
+              <select id="volumeField">
+                <option value="auto">Auto: qty → net weight → gross weight → alt qty</option>
+                <option value="qty">Quantity</option>
+                <option value="netWgt">Net weight</option>
+                <option value="grossWgt">Gross weight</option>
+                <option value="altQty">Alternate quantity</option>
+              </select>
+            </div>
+            <div>
+              <label for="partnerCode">Partner</label>
+              <input id="partnerCode" class="mono" value="0" />
+              <div class="hint">Default <span class="mono">0</span> = World.</div>
+            </div>
+            <div>
+              <label for="maxRecords">Max records</label>
+              <input id="maxRecords" type="number" min="1" max="250000" value="500" />
+            </div>
+            <div>
+              <label for="requestDelay">Delay between calls, ms</label>
+              <input id="requestDelay" type="number" min="0" step="100" value="1100" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="runBtn" class="primary">Run query</button>
+            <button id="saveKeyBtn" class="ghost">Save key locally</button>
+            <button id="clearKeyBtn" class="ghost">Clear key</button>
+            <button id="resetBtn" class="ghost">Reset form</button>
+          </div>
+          <div id="progress" class="progress"><div></div></div>
+          <div id="message" class="message"></div>
+        </div>
+
+        <div class="panel">
+          <h2>2) Quick HS access</h2>
+          <div class="tabs">
+            <button class="tab active small" data-tab="frequent">Frequently used</button>
+            <button class="tab small" data-tab="history">Previous queries</button>
+          </div>
+          <div id="frequentCodes" class="quick-wrap"></div>
+          <div id="historyCodes" class="quick-wrap" style="display:none"></div>
+          <div class="grid" style="margin-top:14px">
+            <div>
+              <label for="customHsCode">Add quick HS code</label>
+              <input id="customHsCode" class="mono" placeholder="284420" />
+            </div>
+            <div>
+              <label for="customHsLabel">Label</label>
+              <input id="customHsLabel" placeholder="Enriched uranium/plutonium" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="addQuickBtn" class="small">Add quick button</button>
+            <button id="clearHistoryBtn" class="small danger">Clear history</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Notes</h2>
+          <p class="footer-note">This is a front-end tool. Browser requests may be affected by UN Comtrade rate limits, API-key status, local network policy, or CORS behavior. If the browser blocks a request, copy the generated API URL from the diagnostics section and test it in the browser or Postman.</p>
+        </div>
+      </section>
+
+      <section>
+        <div class="panel">
+          <div class="result-bar">
+            <h2 style="margin:0">Results</h2>
+            <div class="actions" style="margin:0">
+              <button id="downloadCsvBtn" class="small" disabled>Download CSV</button>
+              <button id="copyUrlsBtn" class="small" disabled>Copy API URLs</button>
+            </div>
+          </div>
+          <div class="summary">
+            <div class="metric">
+              <div class="label">Total amount / primary value</div>
+              <div id="totalAmount" class="value">—</div>
+              <div class="sub">USD unless reporter data specifies otherwise</div>
+            </div>
+            <div class="metric">
+              <div class="label">Total selected volume</div>
+              <div id="totalVolume" class="value">—</div>
+              <div id="volumeBasis" class="sub">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">Average price</div>
+              <div id="avgPrice" class="value">—</div>
+              <div class="sub">amount / selected volume</div>
+            </div>
+          </div>
+          <canvas id="chart" width="980" height="300" aria-label="Trade data chart"></canvas>
+          <div class="footer-note">Chart displays aggregated average price by period. Hover-free static view for local HTML simplicity.</div>
+        </div>
+
+        <div class="panel">
+          <div class="result-bar">
+            <h2 style="margin:0">Aggregated table</h2>
+            <select id="groupBy" style="max-width:240px">
+              <option value="period_cmd">By period + HS code</option>
+              <option value="period">By period</option>
+              <option value="cmd">By HS code</option>
+              <option value="none">Raw rows</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="tableHead"></thead>
+              <tbody id="tableBody"><tr><td colspan="14" style="text-align:left;color:#6b7280">Run a query to show results.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <details open>
+            <summary>Diagnostics / API URLs</summary>
+            <textarea id="apiUrls" readonly placeholder="Generated API URLs will appear here after a query."></textarea>
+          </details>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    "use strict";
+
+    const API_BASE = "https://comtradeapi.un.org/data/v1/get/C";
+    const REPORTERS_URL = "https://comtradeapi.un.org/files/v1/app/reference/Reporters.json";
+
+    const DEFAULT_FREQUENT = [
+      { code: "TOTAL", label: "All commodities" },
+      { code: "284410", label: "Natural uranium & compounds" },
+      { code: "284420", label: "Enriched uranium / plutonium" },
+      { code: "284430", label: "Depleted uranium / thorium" },
+      { code: "840130", label: "Fuel elements, non-irradiated" },
+      { code: "840140", label: "Nuclear reactor parts" },
+      { code: "854143", label: "Photovoltaic cells/modules" },
+      { code: "700719", label: "Tempered safety glass" }
+    ];
+
+    const FALLBACK_REPORTERS = [
+      { id: 156, text: "China" },
+      { id: 344, text: "Hong Kong, China" },
+      { id: 702, text: "Singapore" },
+      { id: 842, text: "United States of America" },
+      { id: 392, text: "Japan" },
+      { id: 410, text: "Rep. of Korea" },
+      { id: 276, text: "Germany" },
+      { id: 251, text: "France" },
+      { id: 826, text: "United Kingdom" },
+      { id: 124, text: "Canada" },
+      { id: 36, text: "Australia" },
+      { id: 784, text: "United Arab Emirates" },
+      { id: 634, text: "Qatar" },
+      { id: 398, text: "Kazakhstan" },
+      { id: 860, text: "Uzbekistan" },
+      { id: 643, text: "Russian Federation" },
+      { id: 682, text: "Saudi Arabia" },
+      { id: 512, text: "Oman" },
+      { id: 76, text: "Brazil" },
+      { id: 710, text: "South Africa" }
+    ];
+
+    let reporters = [];
+    let rawRows = [];
+    let lastApiUrls = [];
+    let lastCsv = "";
+
+    const $ = id => document.getElementById(id);
+    const els = {
+      apiKey: $("apiKey"), countrySearch: $("countrySearch"), reporterCode: $("reporterCode"),
+      flowCode: $("flowCode"), freqCode: $("freqCode"), startMonth: $("startMonth"), endMonth: $("endMonth"),
+      startYear: $("startYear"), endYear: $("endYear"), cmdCode: $("cmdCode"), volumeField: $("volumeField"),
+      partnerCode: $("partnerCode"), maxRecords: $("maxRecords"), requestDelay: $("requestDelay"), runBtn: $("runBtn"),
+      saveKeyBtn: $("saveKeyBtn"), clearKeyBtn: $("clearKeyBtn"), resetBtn: $("resetBtn"), message: $("message"),
+      progress: $("progress"), frequentCodes: $("frequentCodes"), historyCodes: $("historyCodes"), addQuickBtn: $("addQuickBtn"),
+      customHsCode: $("customHsCode"), customHsLabel: $("customHsLabel"), clearHistoryBtn: $("clearHistoryBtn"),
+      totalAmount: $("totalAmount"), totalVolume: $("totalVolume"), avgPrice: $("avgPrice"), volumeBasis: $("volumeBasis"),
+      chart: $("chart"), tableHead: $("tableHead"), tableBody: $("tableBody"), groupBy: $("groupBy"),
+      downloadCsvBtn: $("downloadCsvBtn"), copyUrlsBtn: $("copyUrlsBtn"), apiUrls: $("apiUrls"),
+      countryStatus: $("countryStatus"), historyCount: $("historyCount"), modeStatus: $("modeStatus")
+    };
+
+    function loadLocal(key, fallback) {
+      try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+      catch { return fallback; }
+    }
+    function saveLocal(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+
+    function showMessage(text, type = "info") {
+      els.message.className = `message show ${type}`;
+      els.message.textContent = text;
+    }
+    function clearMessage() {
+      els.message.className = "message";
+      els.message.textContent = "";
+    }
+    function setProgress(done, total) {
+      const pct = total ? Math.round(done / total * 100) : 0;
+      els.progress.classList.add("show");
+      els.progress.firstElementChild.style.width = `${pct}%`;
+      if (done >= total) setTimeout(() => els.progress.classList.remove("show"), 700);
+    }
+
+    function formatNum(x, digits = 2) {
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "—";
+      return new Intl.NumberFormat("en-US", { maximumFractionDigits: digits }).format(n);
+    }
+    function formatMoney(x) {
+      const n = Number(x);
+      if (!Number.isFinite(n)) return "—";
+      return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n);
+    }
+    function isFiniteNumber(x) {
+      return x !== null && x !== undefined && x !== "" && Number.isFinite(Number(x));
+    }
+    function getValue(row, field) {
+      return isFiniteNumber(row[field]) ? Number(row[field]) : 0;
+    }
+
+    function selectedVolume(row) {
+      const field = els.volumeField.value;
+      if (field !== "auto") return getValue(row, field);
+      const candidates = ["qty", "netWgt", "grossWgt", "altQty"];
+      for (const f of candidates) {
+        const v = getValue(row, f);
+        if (v > 0) return v;
+      }
+      return 0;
+    }
+    function volumeUnit(row) {
+      const field = els.volumeField.value;
+      if (field === "qty" || (field === "auto" && getValue(row, "qty") > 0)) return row.qtyUnitAbbr || "qty";
+      if (field === "netWgt" || (field === "auto" && getValue(row, "netWgt") > 0)) return "kg net";
+      if (field === "grossWgt" || (field === "auto" && getValue(row, "grossWgt") > 0)) return "kg gross";
+      if (field === "altQty" || (field === "auto" && getValue(row, "altQty") > 0)) return row.altQtyUnitAbbr || "alt qty";
+      return "selected volume";
+    }
+
+    function sanitizeHs(input) {
+      const raw = String(input || "").trim().toUpperCase().replace(/[;\s]+/g, ",").replace(/,+/g, ",").replace(/^,|,$/g, "");
+      if (!raw) return "";
+      const parts = raw.split(",").filter(Boolean);
+      const invalid = parts.filter(p => p !== "TOTAL" && !/^\d{2,10}$/.test(p) && !/^AG\d+$/.test(p));
+      if (invalid.length) throw new Error(`Invalid HS code: ${invalid.join(", ")}. Use digits, TOTAL, or ag-level codes such as ag1.`);
+      return parts.join(",");
+    }
+
+    function normalizeReporterItem(x) {
+      const id = x.id ?? x.reporterCode ?? x.ReporterCode ?? x.code ?? x.Code;
+      const text = x.text ?? x.reporterDesc ?? x.ReporterDesc ?? x.desc ?? x.Desc ?? x.country ?? x.name ?? x.Name;
+      const iso = x.iso3 ?? x.ISO3 ?? x.reporterISO ?? x.ReporterISO ?? "";
+      if (!id || !text) return null;
+      return { id: Number(id), text: String(text), iso: String(iso || "") };
+    }
+
+    async function loadReporters() {
+      try {
+        const resp = await fetch(REPORTERS_URL, { cache: "force-cache" });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const list = Array.isArray(data) ? data : (data.results || data.data || data.reporters || []);
+        reporters = list.map(normalizeReporterItem).filter(Boolean)
+          .filter(r => Number.isFinite(r.id))
+          .sort((a,b) => a.text.localeCompare(b.text));
+        if (!reporters.length) throw new Error("Empty reporter reference");
+        els.countryStatus.textContent = `${reporters.length} reporters loaded`;
+      } catch (err) {
+        reporters = FALLBACK_REPORTERS.map(r => ({ ...r, iso: "" })).sort((a,b) => a.text.localeCompare(b.text));
+        els.countryStatus.textContent = "Fallback list loaded";
+        showMessage(`Could not load the full Comtrade reporter reference. Using a small fallback country list. Details: ${err.message}`, "info");
+      }
+      renderReporterOptions();
+    }
+
+    function renderReporterOptions() {
+      const q = els.countrySearch.value.trim().toLowerCase();
+      const filtered = reporters.filter(r => !q || r.text.toLowerCase().includes(q) || String(r.id).includes(q) || r.iso.toLowerCase().includes(q)).slice(0, 250);
+      const selected = els.reporterCode.value;
+      els.reporterCode.innerHTML = filtered.map(r => `<option value="${r.id}">${escapeHtml(r.text)} (${r.id}${r.iso ? ", " + escapeHtml(r.iso) : ""})</option>`).join("");
+      if (selected && filtered.some(r => String(r.id) === selected)) els.reporterCode.value = selected;
+      if (!els.reporterCode.value && filtered.length) els.reporterCode.value = String(filtered[0].id);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]));
+    }
+
+    function getQuickCodes() {
+      return loadLocal("comtrade_quick_hs_codes", DEFAULT_FREQUENT);
+    }
+    function setQuickCodes(codes) { saveLocal("comtrade_quick_hs_codes", codes); }
+    function getHistory() { return loadLocal("comtrade_query_history", []); }
+    function setHistory(items) { saveLocal("comtrade_query_history", items); }
+
+    function renderQuickCodes() {
+      const frequent = getQuickCodes();
+      els.frequentCodes.innerHTML = frequent.map(item => chipHtml(item.code, item.label)).join("");
+      const seen = new Set();
+      const histCodes = getHistory()
+        .filter(h => h && h.code)
+        .filter(h => { const key = h.code.toUpperCase(); if (seen.has(key)) return false; seen.add(key); return true; })
+        .slice(0, 30);
+      els.historyCodes.innerHTML = histCodes.length ? histCodes.map(item => chipHtml(item.code, `${item.label || "Previous"} · ${item.date || ""}`)).join("") : '<span class="hint">No previous HS code queries yet.</span>';
+      els.historyCount.textContent = String(getHistory().length);
+      document.querySelectorAll(".chip[data-code]").forEach(chip => {
+        chip.addEventListener("click", () => {
+          els.cmdCode.value = chip.dataset.code;
+          els.cmdCode.focus();
+        });
+      });
+    }
+
+    function chipHtml(code, label) {
+      return `<button class="chip" type="button" data-code="${escapeHtml(code)}"><strong>${escapeHtml(code)}</strong><span>${escapeHtml(label || "")}</span></button>`;
+    }
+
+    function recordHistory() {
+      const reporterText = els.reporterCode.options[els.reporterCode.selectedIndex]?.textContent || els.reporterCode.value;
+      const item = {
+        code: sanitizeHs(els.cmdCode.value),
+        label: reporterText.split("(")[0].trim(),
+        reporterCode: els.reporterCode.value,
+        flowCode: els.flowCode.value,
+        freqCode: els.freqCode.value,
+        date: new Date().toISOString().slice(0, 10)
+      };
+      const old = getHistory().filter(h => !(h.code === item.code && h.reporterCode === item.reporterCode && h.flowCode === item.flowCode));
+      setHistory([item, ...old].slice(0, 80));
+      renderQuickCodes();
+    }
+
+    function updateDateInputs() {
+      const monthly = els.freqCode.value === "M";
+      els.startMonth.style.display = monthly ? "block" : "none";
+      els.endMonth.style.display = monthly ? "block" : "none";
+      els.startYear.style.display = monthly ? "none" : "block";
+      els.endYear.style.display = monthly ? "none" : "block";
+    }
+
+    function setDefaultDates() {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - 1);
+      const end = d.toISOString().slice(0,7);
+      const s = new Date(d);
+      s.setMonth(s.getMonth() - 11);
+      els.startMonth.value = s.toISOString().slice(0,7);
+      els.endMonth.value = end;
+      els.endYear.value = String(d.getFullYear());
+      els.startYear.value = String(d.getFullYear() - 2);
+    }
+
+    function periodList() {
+      if (els.freqCode.value === "A") {
+        const start = Number(els.startYear.value);
+        const end = Number(els.endYear.value);
+        if (!Number.isInteger(start) || !Number.isInteger(end) || start > end) throw new Error("Annual start/end year is invalid.");
+        return Array.from({ length: end - start + 1 }, (_, i) => String(start + i));
+      }
+      if (!els.startMonth.value || !els.endMonth.value) throw new Error("Monthly start/end date is required.");
+      const [sy, sm] = els.startMonth.value.split("-").map(Number);
+      const [ey, em] = els.endMonth.value.split("-").map(Number);
+      const start = new Date(sy, sm - 1, 1);
+      const end = new Date(ey, em - 1, 1);
+      if (start > end) throw new Error("Start date cannot be after end date.");
+      const out = [];
+      for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+        out.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2,"0")}`);
+      }
+      return out;
+    }
+
+    function chunkArray(arr, size) {
+      const chunks = [];
+      for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+      return chunks;
+    }
+
+    function buildUrl(periods) {
+      const freq = els.freqCode.value;
+      const url = new URL(`${API_BASE}/${freq}/HS`);
+      const hs = sanitizeHs(els.cmdCode.value);
+      const apiKey = els.apiKey.value.trim();
+      const params = {
+        cmdCode: hs,
+        flowCode: els.flowCode.value,
+        reporterCode: els.reporterCode.value,
+        partnerCode: (els.partnerCode.value || "0").trim(),
+        partner2Code: "0",
+        customsCode: "C00",
+        motCode: "0",
+        period: periods.join(","),
+        includeDesc: "TRUE",
+        maxRecords: String(Math.min(Number(els.maxRecords.value) || 500, apiKey ? 250000 : 500))
+      };
+      for (const [k,v] of Object.entries(params)) url.searchParams.set(k, v);
+      if (apiKey) url.searchParams.set("subscription-key", apiKey);
+      return url.toString();
+    }
+
+    async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    async function runQuery() {
+      try {
+        clearMessage();
+        rawRows = [];
+        lastApiUrls = [];
+        lastCsv = "";
+        renderTable();
+        const hs = sanitizeHs(els.cmdCode.value);
+        if (!hs) throw new Error("HS code is required.");
+        if (!els.reporterCode.value) throw new Error("Reporter country is required.");
+        const periods = periodList();
+        if (periods.length > 144) throw new Error("Please keep one browser query within 144 monthly periods / annual periods. For larger downloads, use bulk API or a Python script.");
+        const apiKey = els.apiKey.value.trim();
+        els.modeStatus.textContent = apiKey ? "API key query" : "Public preview query";
+        if (!apiKey && Number(els.maxRecords.value) > 500) els.maxRecords.value = "500";
+        const chunks = chunkArray(periods, 12);
+        els.runBtn.disabled = true;
+        els.downloadCsvBtn.disabled = true;
+        els.copyUrlsBtn.disabled = true;
+        showMessage(`Running ${chunks.length} API call(s) for ${periods.length} period(s)...`, "info");
+        setProgress(0, chunks.length);
+        for (let i = 0; i < chunks.length; i++) {
+          const url = buildUrl(chunks[i]);
+          lastApiUrls.push(url.replace(/subscription-key=[^&]+/i, "subscription-key=***"));
+          const resp = await fetch(url, { method: "GET", cache: "no-store" });
+          const text = await resp.text();
+          let json;
+          try { json = JSON.parse(text); } catch { json = { error: text }; }
+          if (!resp.ok) {
+            throw new Error(`Comtrade API HTTP ${resp.status}: ${json.error || json.message || text.slice(0, 300)}`);
+          }
+          if (json.error && String(json.error).trim()) throw new Error(`Comtrade API error: ${json.error}`);
+          const rows = json.data || json.Data || json.dataset || [];
+          if (!Array.isArray(rows)) throw new Error("Comtrade response did not contain a data array.");
+          rawRows.push(...rows);
+          setProgress(i + 1, chunks.length);
+          const delay = Number(els.requestDelay.value) || 0;
+          if (delay > 0 && i < chunks.length - 1) await sleep(delay);
+        }
+        els.apiUrls.value = lastApiUrls.join("\n");
+        recordHistory();
+        updateSummaryAndChart();
+        renderTable();
+        lastCsv = makeCsv(rawRows);
+        els.downloadCsvBtn.disabled = !rawRows.length;
+        els.copyUrlsBtn.disabled = !lastApiUrls.length;
+        showMessage(`Done. Retrieved ${rawRows.length} row(s).`, "info");
+      } catch (err) {
+        showMessage(`${err.message}\n\nIf this is a browser/CORS or network issue, copy the generated URL in Diagnostics and test it directly in the browser/Postman.`, "error");
+        els.apiUrls.value = lastApiUrls.join("\n");
+      } finally {
+        els.runBtn.disabled = false;
+      }
+    }
+
+    function aggregateRows(rows, mode) {
+      if (mode === "none") return rows.map(r => ({
+        period: r.period,
+        cmdCode: r.cmdCode,
+        cmdDesc: r.cmdDesc,
+        reporter: r.reporterDesc,
+        partner: r.partnerDesc,
+        flow: r.flowDesc,
+        qty: getValue(r,"qty"),
+        qtyUnit: r.qtyUnitAbbr,
+        altQty: getValue(r,"altQty"),
+        altQtyUnit: r.altQtyUnitAbbr,
+        netWgt: getValue(r,"netWgt"),
+        grossWgt: getValue(r,"grossWgt"),
+        cifvalue: getValue(r,"cifvalue"),
+        fobvalue: getValue(r,"fobvalue"),
+        primaryValue: getValue(r,"primaryValue"),
+        volume: selectedVolume(r),
+        unit: volumeUnit(r),
+        avg: selectedVolume(r) ? getValue(r,"primaryValue") / selectedVolume(r) : null
+      }));
+
+      const map = new Map();
+      for (const r of rows) {
+        const parts = [];
+        if (mode.includes("period")) parts.push(r.period || "");
+        if (mode.includes("cmd")) parts.push(r.cmdCode || "");
+        const key = parts.join("|") || "all";
+        if (!map.has(key)) {
+          map.set(key, {
+            period: mode.includes("period") ? r.period : "All",
+            cmdCode: mode.includes("cmd") ? r.cmdCode : "All selected",
+            cmdDesc: mode.includes("cmd") ? r.cmdDesc : "Aggregated selected HS codes",
+            reporter: r.reporterDesc,
+            partner: "Aggregated",
+            flow: r.flowDesc,
+            qty: 0, altQty: 0, netWgt: 0, grossWgt: 0,
+            cifvalue: 0, fobvalue: 0, primaryValue: 0, volume: 0,
+            qtyUnit: r.qtyUnitAbbr, altQtyUnit: r.altQtyUnitAbbr, unit: volumeUnit(r)
+          });
+        }
+        const g = map.get(key);
+        g.qty += getValue(r,"qty");
+        g.altQty += getValue(r,"altQty");
+        g.netWgt += getValue(r,"netWgt");
+        g.grossWgt += getValue(r,"grossWgt");
+        g.cifvalue += getValue(r,"cifvalue");
+        g.fobvalue += getValue(r,"fobvalue");
+        g.primaryValue += getValue(r,"primaryValue");
+        g.volume += selectedVolume(r);
+      }
+      return Array.from(map.values()).map(g => ({ ...g, avg: g.volume ? g.primaryValue / g.volume : null }))
+        .sort((a,b) => String(a.period).localeCompare(String(b.period)) || String(a.cmdCode).localeCompare(String(b.cmdCode)));
+    }
+
+    function updateSummaryAndChart() {
+      const totalAmount = rawRows.reduce((s,r) => s + getValue(r,"primaryValue"), 0);
+      const totalVol = rawRows.reduce((s,r) => s + selectedVolume(r), 0);
+      const firstWithVolume = rawRows.find(r => selectedVolume(r) > 0) || rawRows[0] || {};
+      els.totalAmount.textContent = rawRows.length ? formatMoney(totalAmount) : "—";
+      els.totalVolume.textContent = rawRows.length ? formatNum(totalVol, 2) : "—";
+      els.avgPrice.textContent = rawRows.length && totalVol ? formatNum(totalAmount / totalVol, 4) : "—";
+      els.volumeBasis.textContent = rawRows.length ? volumeUnit(firstWithVolume) : "—";
+      drawChart();
+    }
+
+    function drawChart() {
+      const canvas = els.chart;
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0,0,w,h);
+      const data = aggregateRows(rawRows, "period").filter(d => d.period && d.avg !== null && Number.isFinite(d.avg));
+      ctx.strokeStyle = "#d9e0ec";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i=0;i<5;i++) {
+        const y = 30 + i * ((h-70)/4);
+        ctx.moveTo(50,y); ctx.lineTo(w-22,y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = "#6b7280";
+      ctx.font = "12px sans-serif";
+      if (!data.length) {
+        ctx.fillText("No average price data to chart yet.", 50, 52);
+        return;
+      }
+      const vals = data.map(d => d.avg);
+      const min = Math.min(...vals), max = Math.max(...vals);
+      const range = max - min || 1;
+      const x0 = 58, x1 = w - 24, y0 = h - 40, y1 = 28;
+      ctx.fillText(`Avg price range: ${formatNum(min,4)} - ${formatNum(max,4)}`, 58, 18);
+      ctx.strokeStyle = "#0b5fff";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      data.forEach((d, i) => {
+        const x = x0 + (data.length === 1 ? 0 : i * (x1-x0)/(data.length-1));
+        const y = y0 - ((d.avg - min) / range) * (y0-y1);
+        if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      ctx.fillStyle = "#0b5fff";
+      data.forEach((d, i) => {
+        const x = x0 + (data.length === 1 ? 0 : i * (x1-x0)/(data.length-1));
+        const y = y0 - ((d.avg - min) / range) * (y0-y1);
+        ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+      });
+      ctx.fillStyle = "#4b5563";
+      const labelStep = Math.max(1, Math.ceil(data.length / 8));
+      data.forEach((d, i) => {
+        if (i % labelStep === 0 || i === data.length - 1) {
+          const x = x0 + (data.length === 1 ? 0 : i * (x1-x0)/(data.length-1));
+          ctx.save(); ctx.translate(x, h-18); ctx.rotate(-0.35); ctx.fillText(String(d.period), 0, 0); ctx.restore();
+        }
+      });
+    }
+
+    function renderTable() {
+      const mode = els.groupBy.value;
+      const rows = aggregateRows(rawRows, mode);
+      const headers = ["Period", "HS", "Commodity", "Reporter", "Flow", "Partner", "Selected volume", "Unit", "Primary value", "Avg price", "Qty", "Net kg", "CIF", "FOB"];
+      els.tableHead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>`;
+      if (!rows.length) {
+        els.tableBody.innerHTML = `<tr><td colspan="14" style="text-align:left;color:#6b7280">Run a query to show results.</td></tr>`;
+        return;
+      }
+      els.tableBody.innerHTML = rows.map(r => `
+        <tr>
+          <td class="mono">${escapeHtml(r.period ?? "")}</td>
+          <td class="mono">${escapeHtml(r.cmdCode ?? "")}</td>
+          <td title="${escapeHtml(r.cmdDesc ?? "")}">${escapeHtml(shorten(r.cmdDesc, 46))}</td>
+          <td>${escapeHtml(r.reporter ?? "")}</td>
+          <td>${escapeHtml(r.flow ?? "")}</td>
+          <td>${escapeHtml(r.partner ?? "")}</td>
+          <td>${formatNum(r.volume, 3)}</td>
+          <td>${escapeHtml(r.unit ?? "")}</td>
+          <td>${formatMoney(r.primaryValue)}</td>
+          <td>${r.avg ? formatNum(r.avg, 5) : "—"}</td>
+          <td>${formatNum(r.qty, 3)}</td>
+          <td>${formatNum(r.netWgt, 3)}</td>
+          <td>${formatMoney(r.cifvalue)}</td>
+          <td>${formatMoney(r.fobvalue)}</td>
+        </tr>`).join("");
+    }
+
+    function shorten(s, n) {
+      s = String(s || "");
+      return s.length > n ? s.slice(0, n - 1) + "…" : s;
+    }
+
+    function makeCsv(rows) {
+      const fields = [
+        "period", "reporterCode", "reporterISO", "reporterDesc", "flowCode", "flowDesc", "partnerCode", "partnerISO", "partnerDesc",
+        "cmdCode", "cmdDesc", "qtyUnitAbbr", "qty", "altQtyUnitAbbr", "altQty", "netWgt", "grossWgt", "cifvalue", "fobvalue", "primaryValue",
+        "selectedVolume", "selectedVolumeUnit", "averagePrice"
+      ];
+      const lines = [fields.join(",")];
+      for (const r of rows) {
+        const vol = selectedVolume(r);
+        const out = { ...r, selectedVolume: vol, selectedVolumeUnit: volumeUnit(r), averagePrice: vol ? getValue(r,"primaryValue") / vol : "" };
+        lines.push(fields.map(f => csvCell(out[f])).join(","));
+      }
+      return lines.join("\n");
+    }
+    function csvCell(v) {
+      if (v === null || v === undefined) return "";
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+
+    function downloadCsv() {
+      if (!lastCsv) return;
+      const blob = new Blob([lastCsv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const hs = sanitizeHs(els.cmdCode.value).replace(/,/g, "-");
+      a.href = url;
+      a.download = `un_comtrade_${els.reporterCode.value}_${els.flowCode.value}_${hs}_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyUrls() {
+      if (!lastApiUrls.length) return;
+      await navigator.clipboard.writeText(lastApiUrls.join("\n"));
+      showMessage("API URLs copied. Subscription key, if any, is masked in the diagnostics copy.", "info");
+    }
+
+    function addQuickCode() {
+      try {
+        const code = sanitizeHs(els.customHsCode.value);
+        if (!code) throw new Error("Code is required.");
+        const label = els.customHsLabel.value.trim() || "Custom";
+        const codes = getQuickCodes().filter(x => x.code.toUpperCase() !== code.toUpperCase());
+        setQuickCodes([{ code, label }, ...codes].slice(0, 40));
+        els.customHsCode.value = "";
+        els.customHsLabel.value = "";
+        renderQuickCodes();
+      } catch (err) { showMessage(err.message, "error"); }
+    }
+
+    function resetForm() {
+      els.flowCode.value = "M";
+      els.freqCode.value = "M";
+      els.cmdCode.value = "284420";
+      els.partnerCode.value = "0";
+      els.maxRecords.value = els.apiKey.value.trim() ? "250000" : "500";
+      els.requestDelay.value = els.apiKey.value.trim() ? "0" : "1100";
+      els.volumeField.value = "auto";
+      setDefaultDates();
+      updateDateInputs();
+      clearMessage();
+    }
+
+    function setupEvents() {
+      els.countrySearch.addEventListener("input", renderReporterOptions);
+      els.freqCode.addEventListener("change", updateDateInputs);
+      els.runBtn.addEventListener("click", runQuery);
+      els.downloadCsvBtn.addEventListener("click", downloadCsv);
+      els.copyUrlsBtn.addEventListener("click", copyUrls);
+      els.groupBy.addEventListener("change", renderTable);
+      els.volumeField.addEventListener("change", () => { updateSummaryAndChart(); renderTable(); lastCsv = makeCsv(rawRows); });
+      els.addQuickBtn.addEventListener("click", addQuickCode);
+      els.clearHistoryBtn.addEventListener("click", () => { setHistory([]); renderQuickCodes(); });
+      els.saveKeyBtn.addEventListener("click", () => {
+        const key = els.apiKey.value.trim();
+        if (!key) return showMessage("Paste an API key first.", "error");
+        localStorage.setItem("comtrade_api_key", key);
+        els.maxRecords.value = "250000";
+        els.requestDelay.value = "0";
+        showMessage("API key saved in this browser's local storage.", "info");
+      });
+      els.clearKeyBtn.addEventListener("click", () => {
+        localStorage.removeItem("comtrade_api_key");
+        els.apiKey.value = "";
+        els.maxRecords.value = "500";
+        els.requestDelay.value = "1100";
+        showMessage("Saved API key cleared.", "info");
+      });
+      els.resetBtn.addEventListener("click", resetForm);
+      document.querySelectorAll(".tab").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          const tab = btn.dataset.tab;
+          els.frequentCodes.style.display = tab === "frequent" ? "flex" : "none";
+          els.historyCodes.style.display = tab === "history" ? "flex" : "none";
+        });
+      });
+      els.apiKey.addEventListener("input", () => {
+        const has = !!els.apiKey.value.trim();
+        els.modeStatus.textContent = has ? "API key query" : "Public preview / optional key";
+        els.maxRecords.value = has ? "250000" : "500";
+        els.requestDelay.value = has ? "0" : "1100";
+      });
+    }
+
+    async function init() {
+      setupEvents();
+      const savedKey = localStorage.getItem("comtrade_api_key") || "";
+      if (savedKey) els.apiKey.value = savedKey;
+      resetForm();
+      renderQuickCodes();
+      updateSummaryAndChart();
+      await loadReporters();
+      const preferred = reporters.find(r => r.id === 156) || reporters[0];
+      if (preferred) els.reporterCode.value = String(preferred.id);
+    }
+
+    init();
+  </script>
+</body>
+</html>
