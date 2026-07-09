@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>U.S. AI Data Center Buildout Map</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQATpN7yKccp2XRcTDsy2KgGcEwQIiY=" crossorigin="">
+  <style>
+    :root {
+      --bg: #f7f4ee;
+      --ink: #1d2522;
+      --muted: #5f6863;
+      --line: #d9d0c3;
+      --panel: #fffdf8;
+      --panel-2: #ede7dc;
+      --teal: #1f7a74;
+      --green: #2f855a;
+      --rust: #b64b2a;
+      --gold: #bd8b13;
+      --violet: #7652a6;
+      --rose: #b83280;
+      --gray: #67736e;
+      --shadow: 0 12px 28px rgba(31, 38, 35, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input, select { font: inherit; }
+
+    a { color: var(--teal); }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: end;
+      padding: 22px 24px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 56px);
+      line-height: 0.95;
+      max-width: 980px;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      color: var(--muted);
+      max-width: 980px;
+      line-height: 1.45;
+      font-size: 15px;
+    }
+
+    .stamp {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 1fr) 430px;
+      min-height: calc(100vh - 130px);
+    }
+
+    #map {
+      min-height: 640px;
+      width: 100%;
+      z-index: 1;
+      background: #d7ddd6;
+    }
+
+    .leaflet-container {
+      font-family: inherit;
+      background: #d7ddd6;
+    }
+
+    .side {
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      min-height: 0;
+    }
+
+    .controls {
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 11px;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(31, 122, 116, 0.16);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      min-height: 36px;
+    }
+
+    .chip.active {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .metric {
+      background: var(--panel-2);
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+      overflow-wrap: anywhere;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+
+    .list {
+      min-height: 0;
+      overflow: auto;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .site {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(31, 38, 35, 0.05);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .site:hover { border-color: rgba(31, 122, 116, 0.55); }
+
+    .site-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .site h2 {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .site .loc {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 5px 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 6px 10px;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .kv .k {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .popup {
+      width: min(360px, 72vw);
+    }
+
+    .popup h3 {
+      margin: 0 0 7px;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .popup p {
+      margin: 6px 0;
+      line-height: 1.35;
+    }
+
+    .popup .small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .marker-dot {
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: white;
+      border: 2px solid #fff;
+      box-shadow: var(--shadow);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .below {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+      padding: 24px;
+      display: grid;
+      gap: 22px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1180px;
+      font-size: 13px;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      line-height: 1.35;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-2);
+      z-index: 1;
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .sources {
+      columns: 2 360px;
+      column-gap: 30px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .sources a { break-inside: avoid; }
+
+    .method {
+      max-width: 1120px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    @media (max-width: 980px) {
+      header {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .stamp { white-space: normal; }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      #map {
+        min-height: 54vh;
+      }
+
+      .side {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        min-height: 560px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      header { padding: 18px 16px 14px; }
+      .control-row { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: 1fr; }
+      .below { padding: 16px; }
+      .kv { grid-template-columns: 1fr; }
+      .kv .k { margin-top: 3px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>U.S. AIDC Buildout Tracker</h1>
+        <p class="subtitle">Interactive map of publicly reported U.S. AI data center and AI supercomputer projects. Capacity is normalized to MW where possible, but reported figures mix IT load, compute power, campus power, and associated generation.</p>
+      </div>
+      <div class="stamp">Public-data snapshot: July 9, 2026</div>
+    </header>
+
+    <main>
+      <div id="map" aria-label="Interactive map of U.S. AI data center buildout"></div>
+      <aside class="side">
+        <section class="controls" aria-label="Filters">
+          <label>
+            Search
+            <input id="search" type="search" placeholder="Company, state, investor, source note">
+          </label>
+          <div class="control-row">
+            <label>
+              Operator
+              <select id="operator"></select>
+            </label>
+            <label>
+              Minimum capacity
+              <select id="minCapacity">
+                <option value="0">Any / undisclosed</option>
+                <option value="100">100 MW+</option>
+                <option value="400">400 MW+</option>
+                <option value="1000">1 GW+</option>
+                <option value="4000">4 GW+</option>
+              </select>
+            </label>
+          </div>
+          <div class="chips" id="statusChips" aria-label="Status filters"></div>
+          <div class="legend" id="legend"></div>
+        </section>
+        <section class="metrics">
+          <div class="metric"><strong id="countMetric">0</strong><span>visible mapped + table entries</span></div>
+          <div class="metric"><strong id="capacityMetric">0 GW</strong><span>known planned/available capacity only</span></div>
+          <div class="metric"><strong id="investmentMetric">$0B</strong><span>known public investment/lease value</span></div>
+        </section>
+        <section class="list" id="siteList" aria-label="Filtered site list"></section>
+      </aside>
+      <section class="below">
+        <div>
+          <h2>Tracker Table</h2>
+          <p class="method">Use this as a diligence map, not a definitive inventory. Many AI infrastructure projects are announced through special purpose vehicles, utility filings, lease disclosures, or local permitting before operators publish exact IT loads. Entries marked state-level or approximate should be treated as location indicators, not parcel coordinates.</p>
+        </div>
+        <div class="table-wrap">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Capacity</th>
+                <th>Commissioning</th>
+                <th>Investor / developer</th>
+                <th>Customer / workload</th>
+                <th>Other public info</th>
+                <th>Sources</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div>
+          <h2>Sources Used</h2>
+          <div class="sources" id="sources"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const STATUS = {
+      operational: { label: "Operational", color: "#2f855a" },
+      construction: { label: "Under construction", color: "#b64b2a" },
+      announced: { label: "Announced", color: "#7652a6" },
+      proposed: { label: "Proposed / negotiating", color: "#b83280" },
+      screened: { label: "Screened / possible", color: "#67736e" }
+    };
+
+    const SOURCES = {
+      openaiStargate: {
+        label: "OpenAI: Announcing The Stargate Project",
+        url: "https://openai.com/index/announcing-the-stargate-project/"
+      },
+      apStargate: {
+        label: "AP: OpenAI shows off Stargate AI data center in Texas and plans 5 more",
+        url: "https://apnews.com/article/0b3f4fa6e8d8141b4c143e3e7f41aba1"
+      },
+      apAbileneExpansion: {
+        label: "AP: Microsoft takes over a Texas AI data center expansion after OpenAI backs away",
+        url: "https://apnews.com/article/f4f74c3a4617d8cfab5b933fc31ccc6e"
+      },
+      investopediaStargateSites: {
+        label: "Investopedia: Where OpenAI, Oracle and SoftBank are building 5 new data centers",
+        url: "https://www.investopedia.com/heres-where-openai-oracle-and-softbank-are-building-5-new-data-centers-11816169"
+      },
+      apMetaLouisiana: {
+        label: "AP: Meta to build $10 billion AI data center in Louisiana",
+        url: "https://apnews.com/article/1cf320ad4d50bff8d3fac4d0535a0004"
+      },
+      apMetaPower: {
+        label: "AP: Louisiana power upgrades for Meta project",
+        url: "https://apnews.com/article/4ce76b73c102727d71edbbb56abe1388"
+      },
+      apMetaPrometheus: {
+        label: "AP: Meta nuclear energy agreements for Prometheus",
+        url: "https://apnews.com/article/0eb051a9a11d96f7ce200e186ad13476"
+      },
+      apAmazonIndiana: {
+        label: "AP: AWS plans $11 billion data center in northern Indiana",
+        url: "https://apnews.com/article/ccdad82728a72025f37383e3811f13f6"
+      },
+      awsRainier: {
+        label: "AWS: Meet Project Rainier",
+        url: "https://www.aboutamazon.com/news/aws/project-rainier"
+      },
+      wsjTeraWulf: {
+        label: "WSJ: TeraWulf signs $19 billion lease with Anthropic",
+        url: "https://www.wsj.com/finance/investing/terawulf-signs-19-billion-lease-with-anthropic-for-ai-infrastructure-campus-ef26be27"
+      },
+      biTeraWulf: {
+        label: "Business Insider: Anthropic-TeraWulf Kentucky data center lease",
+        url: "https://www.businessinsider.com/anthropic-terawulf-data-center-lease-hawesville-kentucky-2026-7"
+      },
+      apXaiMississippi: {
+        label: "AP: xAI to build $20 billion data center in Mississippi",
+        url: "https://apnews.com/article/433691ace945708a04762b4791602f3d"
+      },
+      arxivSupercomputers: {
+        label: "Pilz et al.: Trends in AI Supercomputers",
+        url: "https://arxiv.org/abs/2504.16026"
+      },
+      apHomerCity: {
+        label: "AP: Homer City coal plant to become AI/data center campus",
+        url: "https://apnews.com/article/450534992fab8dd3527b64b92614259e"
+      },
+      biFermi: {
+        label: "Business Insider: Fermi America / Project Matador tenant talks",
+        url: "https://www.businessinsider.com/fermi-america-amazon-tenant-texas-data-centers-2025-12"
+      },
+      msFairwaterCoverage: {
+        label: "Tom's Hardware: Microsoft Fairwater AI data center",
+        url: "https://www.tomshardware.com/tech-industry/artificial-intelligence/microsoft-announces-worlds-most-powerful-ai-data-center-315-acre-site-to-house-hundreds-of-thousands-of-nvidia-gpus-and-enough-fiber-to-circle-the-earth-4-5-times"
+      },
+      wsjMicrosoftAtlanta: {
+        label: "WSJ: Inside Microsoft's new AI super factory",
+        url: "https://www.wsj.com/tech/ai/inside-microsofts-new-ai-super-factory-3144d211"
+      },
+      coreweaveKenilworth: {
+        label: "Real Estate NJ: CoreWeave to invest $1.2B at Kenilworth campus",
+        url: "https://re-nj.com/a-i-cloud-startup-coreweave-to-build-1-billion-data-center-at-onyxs-nest-campus-in-kenilworth/"
+      },
+      coreweavePlano: {
+        label: "CoreWeave / NVIDIA Plano AI supercomputer reporting",
+        url: "https://www.coreweave.com/blog/coreweave-nvidia-cloud-partnership"
+      },
+      apDoeSites: {
+        label: "AP: DOE invites AI data center development at federal sites",
+        url: "https://apnews.com/article/7431bea2ee491b7cf4b9aa012ac419f1"
+      },
+      edgeconnexBastrop: {
+        label: "San Antonio Express-News: EdgeConneX Bastrop data center campus",
+        url: "https://www.expressnews.com/business/article/austin-bastrop-edgeconnex-data-center-20770838.php"
+      },
+      teslaDojo: {
+        label: "Tesla Dojo public reporting and project history",
+        url: "https://en.wikipedia.org/wiki/Tesla_Dojo"
+      }
+    };
+
+    const SITES = [
+      {
+        id: "stargate-abilene",
+        project: "Stargate Abilene / Lancium Clean Campus",
+        operator: "OpenAI / Oracle / SoftBank",
+        location: "Abilene, Texas",
+        state: "TX",
+        lat: 32.4487,
+        lng: -99.7331,
+        geoConfidence: "City-level",
+        status: "construction",
+        capacityMW: 900,
+        capacityText: "About 900 MW for the initial eight-building Stargate campus; separate nearby expansion reporting points to a broader Abilene buildout up to roughly 2.1 GW.",
+        commissioning: "Initial buildings under construction in 2025; operational capacity began ramping during 2025-2026.",
+        investmentUSD_B: 2.3,
+        investmentText: "$2.3B project lending reported for Abilene; Stargate overall announced a $500B national commitment.",
+        investors: "Stargate JV: OpenAI, SoftBank, Oracle, MGX. Site/development parties reported include Crusoe, Lancium, Blue Owl Capital, Primary Digital Infrastructure, Oracle lease structure.",
+        customer: "OpenAI workloads through Oracle/Stargate; Microsoft reportedly took over a nearby Abilene expansion.",
+        notes: "Hundreds of thousands of NVIDIA GB200-class chips have been reported for the Abilene AI supercluster. Local issues include housing pressure, water, gas generation, and grid impact.",
+        sources: ["openaiStargate", "apStargate", "apAbileneExpansion"]
+      },
+      {
+        id: "stargate-shackelford",
+        project: "Stargate site: Shackelford County",
+        operator: "OpenAI / Oracle",
+        location: "Shackelford County, Texas",
+        state: "TX",
+        lat: 32.7359,
+        lng: -99.3540,
+        geoConfidence: "County-level",
+        status: "announced",
+        capacityMW: null,
+        capacityText: "Site-specific MW not disclosed; part of Stargate path toward nearly 7 GW and more than $400B over three years.",
+        commissioning: "Announced September 2025; detailed commissioning timetable not publicly disclosed.",
+        investmentUSD_B: null,
+        investmentText: "Part of Stargate's multi-site $400B-plus / 7 GW expansion announcement.",
+        investors: "OpenAI and Oracle under the Stargate program.",
+        customer: "OpenAI AI training and inference infrastructure.",
+        notes: "Mapped to county center because parcel-level location has not been publicly disclosed.",
+        sources: ["investopediaStargateSites", "apStargate"]
+      },
+      {
+        id: "stargate-dona-ana",
+        project: "Stargate site: Dona Ana County",
+        operator: "OpenAI / Oracle",
+        location: "Dona Ana County, New Mexico",
+        state: "NM",
+        lat: 32.3199,
+        lng: -106.7637,
+        geoConfidence: "County-level",
+        status: "announced",
+        capacityMW: null,
+        capacityText: "Site-specific MW not disclosed; part of Stargate multi-site capacity plan.",
+        commissioning: "Announced September 2025; detailed commissioning timetable not publicly disclosed.",
+        investmentUSD_B: null,
+        investmentText: "Part of Stargate's multi-site $400B-plus / 7 GW expansion announcement.",
+        investors: "OpenAI and Oracle under the Stargate program.",
+        customer: "OpenAI AI infrastructure.",
+        notes: "Location shown at Las Cruces/Dona Ana County for map readability; actual campus parcel has not been confirmed publicly.",
+        sources: ["investopediaStargateSites", "apStargate"]
+      },
+      {
+        id: "stargate-lordstown",
+        project: "Stargate site: Lordstown",
+        operator: "OpenAI / SoftBank",
+        location: "Lordstown, Ohio",
+        state: "OH",
+        lat: 41.1656,
+        lng: -80.8576,
+        geoConfidence: "City-level",
+        status: "announced",
+        capacityMW: null,
+        capacityText: "Site-specific MW not disclosed; part of Stargate multi-site capacity plan.",
+        commissioning: "Announced September 2025; detailed commissioning timetable not publicly disclosed.",
+        investmentUSD_B: null,
+        investmentText: "Part of Stargate's multi-site $400B-plus / 7 GW expansion announcement.",
+        investors: "OpenAI and SoftBank under the Stargate program.",
+        customer: "OpenAI AI infrastructure.",
+        notes: "Lordstown is one of two OpenAI/SoftBank sites identified in public reporting.",
+        sources: ["investopediaStargateSites", "apStargate"]
+      },
+      {
+        id: "stargate-milam",
+        project: "Stargate site: Milam County",
+        operator: "OpenAI / SoftBank",
+        location: "Milam County, Texas",
+        state: "TX",
+        lat: 30.7868,
+        lng: -96.9769,
+        geoConfidence: "County-level",
+        status: "announced",
+        capacityMW: null,
+        capacityText: "Site-specific MW not disclosed; part of Stargate multi-site capacity plan.",
+        commissioning: "Announced September 2025; detailed commissioning timetable not publicly disclosed.",
+        investmentUSD_B: null,
+        investmentText: "Part of Stargate's multi-site $400B-plus / 7 GW expansion announcement.",
+        investors: "OpenAI and SoftBank under the Stargate program.",
+        customer: "OpenAI AI infrastructure.",
+        notes: "Mapped to county center because parcel-level location has not been publicly disclosed.",
+        sources: ["investopediaStargateSites", "apStargate"]
+      },
+      {
+        id: "stargate-midwest",
+        project: "Stargate site: Midwest location TBA",
+        operator: "OpenAI / Oracle",
+        location: "Midwestern U.S. site not publicly named",
+        state: "TBA",
+        lat: 41.6,
+        lng: -93.6,
+        geoConfidence: "Placeholder",
+        status: "announced",
+        capacityMW: null,
+        capacityText: "No site-specific MW disclosed.",
+        commissioning: "Announced as unnamed Midwest site; timetable not publicly disclosed.",
+        investmentUSD_B: null,
+        investmentText: "Part of Stargate's multi-site expansion announcement.",
+        investors: "OpenAI and Oracle under the Stargate program.",
+        customer: "OpenAI AI infrastructure.",
+        notes: "Marker is a placeholder at a central Midwest coordinate, not a disclosed location.",
+        sources: ["investopediaStargateSites", "apStargate"]
+      },
+      {
+        id: "meta-hyperion",
+        project: "Meta Hyperion",
+        operator: "Meta",
+        location: "Richland Parish, Louisiana",
+        state: "LA",
+        lat: 32.40,
+        lng: -91.75,
+        geoConfidence: "Parish-level",
+        status: "construction",
+        capacityMW: 5000,
+        capacityText: "Up to 5 GW of compute/power reported for Hyperion at full scale.",
+        commissioning: "Construction began after December 2024 announcement; completion/major operations targeted by 2030.",
+        investmentUSD_B: 10,
+        investmentText: "$10B announced data center investment; separate reports discuss multi-billion-dollar utility upgrades.",
+        investors: "Meta; power infrastructure tied to Entergy Louisiana proceedings and gas/transmission buildout.",
+        customer: "Meta AI / Llama / Meta Superintelligence Labs workloads.",
+        notes: "Reported as a 4M sq ft AI-optimized campus with 5,000 construction jobs and 500 operational jobs. Power plan has drawn cost-allocation and fossil-generation scrutiny.",
+        sources: ["apMetaLouisiana", "apMetaPower"]
+      },
+      {
+        id: "meta-prometheus",
+        project: "Meta Prometheus",
+        operator: "Meta",
+        location: "New Albany, Ohio",
+        state: "OH",
+        lat: 40.0812,
+        lng: -82.8088,
+        geoConfidence: "City-level",
+        status: "construction",
+        capacityMW: 1000,
+        capacityText: "About 1 GW data center cluster reported.",
+        commissioning: "Expected to begin operations in 2026.",
+        investmentUSD_B: null,
+        investmentText: "Project-specific capex not fully disclosed in public reporting.",
+        investors: "Meta; energy agreements reported with Vistra, TerraPower, and Oklo for future nuclear supply.",
+        customer: "Meta AI training/inference workloads.",
+        notes: "Nuclear energy agreements are meant to support Prometheus and broader Meta AI power demand, with some capacity reaching into the 2030s.",
+        sources: ["apMetaPrometheus"]
+      },
+      {
+        id: "aws-rainier",
+        project: "AWS Project Rainier",
+        operator: "Amazon Web Services",
+        location: "New Carlisle, Indiana",
+        state: "IN",
+        lat: 41.7003,
+        lng: -86.5095,
+        geoConfidence: "City-level",
+        status: "operational",
+        capacityMW: 2200,
+        capacityText: "Public reporting describes a 2.2 GW electricity requirement at full buildout; AWS announced an $11B campus.",
+        commissioning: "Construction over the next decade announced in 2024; AI supercomputer capacity reported operational/ramping in 2025.",
+        investmentUSD_B: 11,
+        investmentText: "$11B AWS investment in Indiana.",
+        investors: "Amazon Web Services; Indiana incentives and local infrastructure support.",
+        customer: "Anthropic Claude workloads using AWS Trainium infrastructure.",
+        notes: "Project Rainier is an AWS custom AI supercomputer program. Public reporting described seven data centers open out of an estimated larger campus plan.",
+        sources: ["apAmazonIndiana", "awsRainier"]
+      },
+      {
+        id: "microsoft-fairwater-wi",
+        project: "Microsoft Fairwater Wisconsin",
+        operator: "Microsoft",
+        location: "Mount Pleasant, Wisconsin",
+        state: "WI",
+        lat: 42.7117,
+        lng: -87.8945,
+        geoConfidence: "City-level",
+        status: "operational",
+        capacityMW: null,
+        capacityText: "MW not publicly disclosed; site reported as 315 acres, 1.2M sq ft, and hundreds of thousands of NVIDIA GB200/GB300 GPUs.",
+        commissioning: "Announced/launched 2025 with early 2026 scale-up reporting.",
+        investmentUSD_B: 7.3,
+        investmentText: "Local reporting and lawsuit coverage cite about $7.3B.",
+        investors: "Microsoft.",
+        customer: "Microsoft AI models and Azure/OpenAI-related demand.",
+        notes: "Built on former Foxconn/Wisconn Valley land. Public controversy includes 2026 noise litigation and mitigation efforts.",
+        sources: ["msFairwaterCoverage"]
+      },
+      {
+        id: "microsoft-fairwater-atlanta",
+        project: "Microsoft Fairwater Atlanta AI super factory",
+        operator: "Microsoft",
+        location: "Atlanta area, Georgia",
+        state: "GA",
+        lat: 33.7490,
+        lng: -84.3880,
+        geoConfidence: "Metro-level",
+        status: "construction",
+        capacityMW: null,
+        capacityText: "MW not publicly disclosed; reported as over 1M sq ft across 85 acres.",
+        commissioning: "Reported as part of Microsoft's Fairwater network buildout in 2025-2026.",
+        investmentUSD_B: null,
+        investmentText: "Facility-specific cost not disclosed publicly.",
+        investors: "Microsoft.",
+        customer: "Microsoft AI models, Azure customers, and OpenAI-related capacity.",
+        notes: "Connected to other Fairwater sites through a high-capacity fiber network; intended for high-density GPU training clusters.",
+        sources: ["wsjMicrosoftAtlanta"]
+      },
+      {
+        id: "xai-colossus",
+        project: "xAI Colossus 1",
+        operator: "xAI / SpaceXAI",
+        location: "Memphis, Tennessee",
+        state: "TN",
+        lat: 35.0430,
+        lng: -90.0800,
+        geoConfidence: "Neighborhood-level approximate",
+        status: "operational",
+        capacityMW: 300,
+        capacityText: "Research dataset estimated 300 MW for Colossus with about 200,000 AI chips in early 2025; local interconnection reporting also cited lower staged power levels.",
+        commissioning: "Initial system went operational in 2024; expanded through 2025-2026.",
+        investmentUSD_B: 7,
+        investmentText: "Research estimate of about $7B hardware cost for the 200,000-chip system.",
+        investors: "xAI / Elon Musk investor base; later corporate restructuring tied xAI assets to SpaceXAI reporting.",
+        customer: "Initially Grok/xAI workloads; 2026 reporting says Anthropic leased Colossus 1 capacity.",
+        notes: "Known for extremely fast deployment and heavy use of on-site gas turbines plus battery storage; environmental groups have challenged air permits and emissions.",
+        sources: ["arxivSupercomputers"]
+      },
+      {
+        id: "xai-southaven",
+        project: "xAI MACROHARDRR / Colossus expansion",
+        operator: "xAI / SpaceXAI",
+        location: "Southaven, Mississippi",
+        state: "MS",
+        lat: 34.9890,
+        lng: -90.0126,
+        geoConfidence: "City-level",
+        status: "construction",
+        capacityMW: 2000,
+        capacityText: "About 2 GW computing power reported for the greater Memphis-area expansion.",
+        commissioning: "AP reported operations expected to begin in early 2026, with additional ramp thereafter.",
+        investmentUSD_B: 20,
+        investmentText: "$20B private investment announced for Mississippi.",
+        investors: "xAI / Musk-linked investor base; state and local tax incentives reported.",
+        customer: "Grok/xAI and related AI workloads.",
+        notes: "Largest private investment announced in Mississippi history, with tax incentives and environmental justice concerns around air emissions.",
+        sources: ["apXaiMississippi"]
+      },
+      {
+        id: "terawulf-anthropic-ky",
+        project: "TeraWulf Justified Data / Anthropic lease",
+        operator: "TeraWulf / Anthropic",
+        location: "Hawesville, Kentucky",
+        state: "KY",
+        lat: 37.8992,
+        lng: -86.7544,
+        geoConfidence: "City-level",
+        status: "announced",
+        capacityMW: 401,
+        capacityText: "401 MW critical IT load expected at full campus.",
+        commissioning: "Initial capacity in H2 2027; full capacity expected by early 2028.",
+        investmentUSD_B: 19,
+        investmentText: "20-year Anthropic lease expected to generate about $19B contracted revenue.",
+        investors: "TeraWulf; Anthropic as lessee/customer; investment-grade credit support reported.",
+        customer: "Anthropic Claude AI infrastructure.",
+        notes: "Former Century Aluminum smelter site; TeraWulf says the deal creates a framework for expansion beyond the initial lease.",
+        sources: ["wsjTeraWulf", "biTeraWulf"]
+      },
+      {
+        id: "homer-city",
+        project: "Homer City Redevelopment AI/data center campus",
+        operator: "Homer City Development",
+        location: "Homer City, Pennsylvania",
+        state: "PA",
+        lat: 40.5190,
+        lng: -79.1628,
+        geoConfidence: "Site area",
+        status: "construction",
+        capacityMW: 4500,
+        capacityText: "Up to 4.5 GW gas-fired generation/data center capacity reported.",
+        commissioning: "Construction expected to begin in 2025; initial operations targeted by 2027.",
+        investmentUSD_B: 10,
+        investmentText: "$10B-plus redevelopment reported; later summaries cite up to $15B.",
+        investors: "Homer City Development; gas supply context tied to EQT/Marcellus region reporting.",
+        customer: "Prospective Big Tech AI/cloud tenants not publicly named.",
+        notes: "Redevelopment of retired coal plant into a gas-powered AI/cloud campus; would be one of the largest U.S. gas generation facilities.",
+        sources: ["apHomerCity"]
+      },
+      {
+        id: "fermi-matador",
+        project: "Fermi America Project Matador",
+        operator: "Fermi America",
+        location: "Amarillo, Texas",
+        state: "TX",
+        lat: 35.2219,
+        lng: -101.8313,
+        geoConfidence: "Metro-level",
+        status: "proposed",
+        capacityMW: 11000,
+        capacityText: "11 GW campus over roughly a decade reported; separate environmental reporting discusses larger associated gas-generation proposals.",
+        commissioning: "Prospective first 1 GW across 12 facilities under negotiation; no firm public commissioning date.",
+        investmentUSD_B: null,
+        investmentText: "Not fully committed; public-market and tenant-negotiation disclosures reported.",
+        investors: "Fermi America; prospective tenant negotiations reportedly included Amazon but remained active/nonbinding.",
+        customer: "Potential hyperscaler/AI tenants; no binding named tenant in public reporting.",
+        notes: "Treat as high-uncertainty: prospective tenant talks and financing terms were reported as fluid.",
+        sources: ["biFermi"]
+      },
+      {
+        id: "coreweave-kenilworth",
+        project: "CoreWeave NEST campus",
+        operator: "CoreWeave",
+        location: "Kenilworth, New Jersey",
+        state: "NJ",
+        lat: 40.6765,
+        lng: -74.2907,
+        geoConfidence: "City-level",
+        status: "construction",
+        capacityMW: null,
+        capacityText: "MW not publicly disclosed; 280,000 sq ft AI cloud data center space reported.",
+        commissioning: "Lease and investment announced in 2024; buildout thereafter.",
+        investmentUSD_B: 1.2,
+        investmentText: "$1.2B reported facility investment.",
+        investors: "CoreWeave; Onyx Equities/NEST campus context.",
+        customer: "CoreWeave AI cloud customers, including major model providers.",
+        notes: "Part of CoreWeave's rapid GPU-cloud expansion in the U.S. and Europe.",
+        sources: ["coreweaveKenilworth"]
+      },
+      {
+        id: "coreweave-plano",
+        project: "CoreWeave / NVIDIA Plano AI supercomputer",
+        operator: "CoreWeave",
+        location: "Plano, Texas",
+        state: "TX",
+        lat: 33.0198,
+        lng: -96.6989,
+        geoConfidence: "City-level",
+        status: "operational",
+        capacityMW: null,
+        capacityText: "MW not publicly disclosed; around 450,000 sq ft and 3,500-plus NVIDIA H100 GPUs reported for the dedicated supercomputer project.",
+        commissioning: "Operational since 2023 reporting; included for buildout context.",
+        investmentUSD_B: 1.6,
+        investmentText: "$1.6B supercomputer/data center project reported.",
+        investors: "CoreWeave and NVIDIA partnership.",
+        customer: "NVIDIA-dedicated AI supercomputer capacity.",
+        notes: "Shows the neocloud-to-chipmaker model that preceded the larger 2025-2026 AI infrastructure rush.",
+        sources: ["coreweavePlano"]
+      },
+      {
+        id: "edgeconnex-bastrop",
+        project: "EdgeConneX AUS02 / Bastrop campus",
+        operator: "EdgeConneX / Rackspace",
+        location: "Bastrop County, Texas",
+        state: "TX",
+        lat: 30.1105,
+        lng: -97.3153,
+        geoConfidence: "County-level",
+        status: "construction",
+        capacityMW: 384,
+        capacityText: "Up to 96 MW per building across four planned buildings, or roughly 384 MW if fully built.",
+        commissioning: "First 578,000 sq ft building expected by June 2026 in public reporting.",
+        investmentUSD_B: 1.44,
+        investmentText: "$1.44B total campus estimate reported; first building about $440M.",
+        investors: "EdgeConneX with Rackspace Technology; local property-tax abatement reported.",
+        customer: "Colocation/HPC customers not publicly named; proximity to Musk/Tesla/xAI operations has prompted speculation.",
+        notes: "Not confirmed as a dedicated AI frontier-model site, but it is a large HPC-ready Texas campus relevant to the buildout.",
+        sources: ["edgeconnexBastrop"]
+      },
+      {
+        id: "tesla-cortex-austin",
+        project: "Tesla Cortex / Gigafactory Texas AI cluster",
+        operator: "Tesla",
+        location: "Austin, Texas",
+        state: "TX",
+        lat: 30.2223,
+        lng: -97.6171,
+        geoConfidence: "Facility-level approximate",
+        status: "construction",
+        capacityMW: 500,
+        capacityText: "Elon Musk described Gigafactory Texas cluster work as initially 130 MW and eventually exceeding 500 MW thermal design power.",
+        commissioning: "Construction discussed in 2024; subsequent Dojo/Cortex strategy changed through 2025-2026.",
+        investmentUSD_B: null,
+        investmentText: "Project-specific capex not fully disclosed.",
+        investors: "Tesla.",
+        customer: "Tesla FSD, robotics, and internal AI workloads.",
+        notes: "Included as a company-owned AI training cluster, not a third-party leased data center. Dojo program status has shifted repeatedly.",
+        sources: ["teslaDojo"]
+      },
+      {
+        id: "doe-los-alamos",
+        project: "DOE possible AI data center site: Los Alamos",
+        operator: "U.S. Department of Energy / prospective private developers",
+        location: "Los Alamos National Laboratory, New Mexico",
+        state: "NM",
+        lat: 35.8797,
+        lng: -106.3031,
+        geoConfidence: "Federal site",
+        status: "screened",
+        capacityMW: null,
+        capacityText: "No project MW disclosed; identified as one of 16 federal sites for possible AI data center development.",
+        commissioning: "Screened/solicited in 2025; not an announced private buildout.",
+        investmentUSD_B: null,
+        investmentText: "No committed project investment disclosed.",
+        investors: "DOE site opportunity; private developers would be needed.",
+        customer: "Potential AI developers.",
+        notes: "Included to show federal land/power siting pipeline, not a committed campus.",
+        sources: ["apDoeSites"]
+      },
+      {
+        id: "doe-oak-ridge",
+        project: "DOE possible AI data center site: Oak Ridge",
+        operator: "U.S. Department of Energy / prospective private developers",
+        location: "Oak Ridge National Laboratory, Tennessee",
+        state: "TN",
+        lat: 35.9313,
+        lng: -84.3104,
+        geoConfidence: "Federal site",
+        status: "screened",
+        capacityMW: null,
+        capacityText: "No project MW disclosed; identified among federal sites for possible AI data center development.",
+        commissioning: "Screened/solicited in 2025; not an announced private buildout.",
+        investmentUSD_B: null,
+        investmentText: "No committed project investment disclosed.",
+        investors: "DOE site opportunity; private developers would be needed.",
+        customer: "Potential AI developers.",
+        notes: "Existing energy/research infrastructure is part of the siting rationale.",
+        sources: ["apDoeSites"]
+      },
+      {
+        id: "doe-sandia",
+        project: "DOE possible AI data center site: Sandia",
+        operator: "U.S. Department of Energy / prospective private developers",
+        location: "Sandia National Laboratories, New Mexico",
+        state: "NM",
+        lat: 35.0488,
+        lng: -106.5406,
+        geoConfidence: "Federal site",
+        status: "screened",
+        capacityMW: null,
+        capacityText: "No project MW disclosed; identified among federal sites for possible AI data center development.",
+        commissioning: "Screened/solicited in 2025; not an announced private buildout.",
+        investmentUSD_B: null,
+        investmentText: "No committed project investment disclosed.",
+        investors: "DOE site opportunity; private developers would be needed.",
+        customer: "Potential AI developers.",
+        notes: "Potential permitting/power advantages were highlighted in federal-site reporting.",
+        sources: ["apDoeSites"]
+      }
+    ];
+
+    const state = {
+      status: "all",
+      operator: "all",
+      minCapacity: 0,
+      search: ""
+    };
+
+    const map = L.map("map", { scrollWheelZoom: true }).setView([38.5, -96.5], 4);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const markers = new Map();
+    const listEl = document.getElementById("siteList");
+    const tableBody = document.querySelector("#dataTable tbody");
+    const searchEl = document.getElementById("search");
+    const operatorEl = document.getElementById("operator");
+    const minCapacityEl = document.getElementById("minCapacity");
+    const chipsEl = document.getElementById("statusChips");
+    const legendEl = document.getElementById("legend");
+
+    function capacitySize(mw) {
+      if (!mw) return 24;
+      if (mw >= 4000) return 54;
+      if (mw >= 1000) return 44;
+      if (mw >= 400) return 34;
+      return 28;
+    }
+
+    function capacityLabel(mw) {
+      if (!mw) return "?";
+      if (mw >= 1000) return `${(mw / 1000).toFixed(mw % 1000 === 0 ? 0 : 1)}GW`;
+      return `${mw}MW`;
+    }
+
+    function moneyLabel(value) {
+      if (value == null) return "Undisclosed";
+      if (value >= 100) return `$${value.toLocaleString()}B`;
+      return `$${value.toFixed(value % 1 === 0 ? 0 : 1)}B`;
+    }
+
+    function sourceLinks(keys) {
+      return keys.map(key => {
+        const source = SOURCES[key];
+        return source ? `<a href="${source.url}" target="_blank" rel="noreferrer">${source.label}</a>` : "";
+      }).filter(Boolean).join("<br>");
+    }
+
+    function passes(site) {
+      const haystack = [
+        site.project, site.operator, site.location, site.state, site.status, site.capacityText,
+        site.commissioning, site.investors, site.customer, site.notes, site.investmentText
+      ].join(" ").toLowerCase();
+      const matchesSearch = !state.search || haystack.includes(state.search.toLowerCase());
+      const matchesStatus = state.status === "all" || site.status === state.status;
+      const matchesOperator = state.operator === "all" || site.operator === state.operator;
+      const matchesCapacity = state.minCapacity === 0 || (site.capacityMW || 0) >= state.minCapacity;
+      return matchesSearch && matchesStatus && matchesOperator && matchesCapacity;
+    }
+
+    function markerIcon(site) {
+      const size = capacitySize(site.capacityMW);
+      const status = STATUS[site.status];
+      return L.divIcon({
+        className: "",
+        html: `<div class="marker-dot" style="width:${size}px;height:${size}px;background:${status.color};">${capacityLabel(site.capacityMW)}</div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -size / 2]
+      });
+    }
+
+    function popupHtml(site) {
+      return `
+        <div class="popup">
+          <h3>${site.project}</h3>
+          <p><strong>${site.location}</strong> <span class="small">(${site.geoConfidence})</span></p>
+          <p><strong>Status:</strong> ${STATUS[site.status].label}</p>
+          <p><strong>Capacity:</strong> ${site.capacityText}</p>
+          <p><strong>Commissioning:</strong> ${site.commissioning}</p>
+          <p><strong>Investor/developer:</strong> ${site.investors}</p>
+          <p><strong>Customer/workload:</strong> ${site.customer}</p>
+          <p class="small">${site.notes}</p>
+          <p class="small">${sourceLinks(site.sources)}</p>
+        </div>
+      `;
+    }
+
+    function siteCard(site) {
+      const status = STATUS[site.status];
+      return `
+        <article class="site" data-id="${site.id}">
+          <div class="site-head">
+            <div>
+              <h2>${site.project}</h2>
+              <div class="loc">${site.location} · ${site.geoConfidence}</div>
+            </div>
+            <span class="badge" style="background:${status.color};">${status.label}</span>
+          </div>
+          <div class="kv">
+            <div class="k">Capacity</div><div>${site.capacityText}</div>
+            <div class="k">Timeline</div><div>${site.commissioning}</div>
+            <div class="k">Investor</div><div>${site.investors}</div>
+            <div class="k">Customer</div><div>${site.customer}</div>
+          </div>
+          <div class="note">${site.notes}</div>
+        </article>
+      `;
+    }
+
+    function tableRow(site) {
+      return `
+        <tr>
+          <td><strong>${site.project}</strong><br><span class="note">${site.operator}</span></td>
+          <td>${site.location}<br><span class="note">${site.geoConfidence}</span></td>
+          <td>${STATUS[site.status].label}</td>
+          <td>${site.capacityText}</td>
+          <td>${site.commissioning}</td>
+          <td>${site.investors}<br><span class="note">${site.investmentText}</span></td>
+          <td>${site.customer}</td>
+          <td>${site.notes}</td>
+          <td>${sourceLinks(site.sources)}</td>
+        </tr>
+      `;
+    }
+
+    function renderFilters() {
+      const operators = ["all", ...Array.from(new Set(SITES.map(site => site.operator))).sort()];
+      operatorEl.innerHTML = operators.map(operator => `<option value="${operator}">${operator === "all" ? "All operators" : operator}</option>`).join("");
+      chipsEl.innerHTML = [`<button class="chip active" data-status="all">All</button>`]
+        .concat(Object.entries(STATUS).map(([key, value]) => `<button class="chip" data-status="${key}">${value.label}</button>`))
+        .join("");
+      legendEl.innerHTML = Object.entries(STATUS).map(([key, value]) => `
+        <span class="legend-item"><span class="swatch" style="background:${value.color}"></span>${value.label}</span>
+      `).join("");
+    }
+
+    function render() {
+      const visible = SITES.filter(passes);
+
+      markers.forEach(marker => map.removeLayer(marker));
+      markers.clear();
+
+      const bounds = [];
+      visible.forEach(site => {
+        const marker = L.marker([site.lat, site.lng], { icon: markerIcon(site) }).bindPopup(popupHtml(site));
+        marker.addTo(map);
+        markers.set(site.id, marker);
+        bounds.push([site.lat, site.lng]);
+      });
+
+      if (bounds.length > 1) {
+        map.fitBounds(bounds, { padding: [36, 36], maxZoom: 6 });
+      }
+
+      listEl.innerHTML = visible.map(siteCard).join("") || `<div class="note">No matching sites.</div>`;
+      tableBody.innerHTML = visible.map(tableRow).join("");
+
+      const knownMW = visible.reduce((sum, site) => sum + (site.capacityMW || 0), 0);
+      const knownInvestment = visible.reduce((sum, site) => sum + (site.investmentUSD_B || 0), 0);
+      document.getElementById("countMetric").textContent = visible.length.toLocaleString();
+      document.getElementById("capacityMetric").textContent = `${(knownMW / 1000).toFixed(knownMW >= 10000 ? 1 : 2)} GW`;
+      document.getElementById("investmentMetric").textContent = `$${knownInvestment.toFixed(knownInvestment >= 100 ? 0 : 1)}B`;
+
+      document.querySelectorAll(".site").forEach(card => {
+        card.addEventListener("click", () => {
+          const site = SITES.find(item => item.id === card.dataset.id);
+          const marker = markers.get(site.id);
+          if (marker) {
+            map.setView([site.lat, site.lng], Math.max(map.getZoom(), 7), { animate: true });
+            marker.openPopup();
+          }
+        });
+      });
+    }
+
+    function renderSources() {
+      const used = new Set(SITES.flatMap(site => site.sources));
+      document.getElementById("sources").innerHTML = Array.from(used).map(key => {
+        const source = SOURCES[key];
+        return source ? `<p><a href="${source.url}" target="_blank" rel="noreferrer">${source.label}</a></p>` : "";
+      }).join("");
+    }
+
+    renderFilters();
+    renderSources();
+    render();
+
+    searchEl.addEventListener("input", event => {
+      state.search = event.target.value.trim();
+      render();
+    });
+
+    operatorEl.addEventListener("change", event => {
+      state.operator = event.target.value;
+      render();
+    });
+
+    minCapacityEl.addEventListener("change", event => {
+      state.minCapacity = Number(event.target.value);
+      render();
+    });
+
+    chipsEl.addEventListener("click", event => {
+      const button = event.target.closest("button[data-status]");
+      if (!button) return;
+      state.status = button.dataset.status;
+      chipsEl.querySelectorAll(".chip").forEach(chip => chip.classList.toggle("active", chip === button));
+      render();
+    });
+  </script>
+</body>
+</html>
