@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BOCI Report Email Builder</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="panel input-panel" aria-labelledby="input-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">BOCI Research</p>
+            <h1 id="input-title">Report email builder</h1>
+          </div>
+          <button id="sampleButton" class="icon-button" type="button" title="Load sample input" aria-label="Load sample input">
+            <span aria-hidden="true">↺</span>
+          </button>
+        </div>
+
+        <label class="field">
+          <span>Original report notification</span>
+          <textarea id="sourceInput" spellcheck="false" placeholder="Paste the Published status report notification here"></textarea>
+        </label>
+
+        <div class="settings-grid">
+          <label class="field">
+            <span>Report link</span>
+            <input id="reportUrl" type="url" placeholder="Paste published report URL" />
+          </label>
+          <label class="field">
+            <span>BOCI Research website</span>
+            <input id="websiteUrl" type="url" value="http://www.bociresearch.com/" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Analyst email preset list</span>
+          <textarea id="emailDirectory" class="directory-input" spellcheck="false"></textarea>
+        </label>
+
+        <div class="actions">
+          <button id="generateButton" class="primary-button" type="button">Generate email</button>
+          <button id="copyHtmlButton" type="button">Copy HTML</button>
+          <button id="copyTextButton" type="button">Copy text</button>
+        </div>
+
+        <p id="statusMessage" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel output-panel" aria-labelledby="output-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Preview</p>
+            <h2 id="output-title">Email-ready output</h2>
+          </div>
+        </div>
+        <article id="emailPreview" class="email-preview"></article>
+      </section>
+    </main>
+
+    <template id="emptyState">
+      <div class="empty-state">
+        <h3>Paste a notification to begin</h3>
+        <p>The generated bilingual email will appear here.</p>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
