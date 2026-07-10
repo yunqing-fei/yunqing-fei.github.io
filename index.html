@@ -7,89 +7,151 @@
   <meta name="description" content="A minimalist homepage for research, data tools and market dashboards." />
   <style>
     :root {
-      --bg: #f3f3f1;
-      --text: #111111;
-      --muted: #777777;
-      --soft: #dfdfdc;
-      --soft-2: #e8e8e5;
-      --link: #5f5f5f;
-      --link-hover: #111111;
+      color-scheme: light;
+      --bg: #f4f2ed;
+      --bg-warm: #fbfaf7;
+      --text: #151515;
+      --muted: #625f59;
+      --muted-2: #8d877e;
+      --line: rgba(32, 32, 29, 0.12);
+      --line-strong: rgba(32, 32, 29, 0.2);
+      --panel: rgba(255, 255, 252, 0.42);
+      --accent: #b06442;
+      --accent-soft: rgba(176, 100, 66, 0.15);
+      --accent-cool: #5d7776;
+      --shadow: 0 24px 80px rgba(72, 62, 48, 0.08);
     }
 
     * {
       box-sizing: border-box;
     }
 
-    html,
-    body {
-      margin: 0;
+    html {
       min-height: 100%;
+      background: var(--bg);
     }
 
     body {
       min-height: 100vh;
-      background: var(--bg);
+      margin: 0;
+      background:
+        radial-gradient(circle at 14% 18%, rgba(176, 100, 66, 0.12), transparent 30%),
+        radial-gradient(circle at 82% 18%, rgba(93, 119, 118, 0.11), transparent 28%),
+        linear-gradient(135deg, #faf9f5 0%, var(--bg) 44%, #ece9e2 100%);
       color: var(--text);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
       font-size: 14px;
-      letter-spacing: -0.015em;
+      letter-spacing: 0;
       overflow-x: hidden;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      content: "";
+      background-image:
+        url("data:image/svg+xml,%3Csvg width='160' height='160' viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23151515' stroke-opacity='.045' stroke-width='1'%3E%3Cpath d='M80 18C93 48 112 67 142 80C112 93 93 112 80 142C67 112 48 93 18 80C48 67 67 48 80 18Z'/%3E%3Ccircle cx='80' cy='80' r='17'/%3E%3Cpath d='M80 39V121M39 80H121M51 51L109 109M109 51L51 109'/%3E%3C/g%3E%3C/svg%3E");
+      background-position: -32px -20px;
+      background-size: 176px 176px;
+      mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.18) 56%, transparent 86%);
+    }
+
+    body::after {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      content: "";
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+      background-size: 72px 72px;
+      opacity: 0.34;
     }
 
     .page {
       position: relative;
+      z-index: 1;
       min-height: 100vh;
-      padding: clamp(34px, 6vw, 74px) clamp(26px, 6.4vw, 72px);
+      padding: clamp(72px, 11vh, 116px) clamp(26px, 6.4vw, 76px) clamp(92px, 12vh, 132px);
       display: grid;
-      grid-template-columns: 0.82fr 1fr 1fr 1.2fr;
-      align-items: center;
-      gap: clamp(34px, 5vw, 92px);
+      grid-template-columns: minmax(150px, 0.78fr) repeat(3, minmax(150px, 1fr)) minmax(190px, 0.92fr);
+      align-items: start;
+      gap: clamp(30px, 4.5vw, 78px);
+    }
+
+    .intro,
+    .column,
+    .flower-wrap {
+      position: relative;
     }
 
     .intro,
     .column {
-      position: relative;
       z-index: 2;
     }
 
     .intro {
-      align-self: center;
-      transform: translateY(-2px);
+      align-self: start;
+      padding: 15px 0 2px 16px;
+    }
+
+    .intro::before {
+      position: absolute;
+      top: 17px;
+      bottom: 5px;
+      left: 0;
+      width: 2px;
+      border-radius: 999px;
+      content: "";
+      background: linear-gradient(180deg, var(--accent), var(--accent-cool));
+      opacity: 0.72;
     }
 
     .name {
       margin: 0;
-      font-size: 14px;
-      font-weight: 720;
-      letter-spacing: -0.025em;
+      font-size: 15px;
+      font-weight: 740;
       line-height: 1.35;
     }
 
     .small-note {
+      max-width: 160px;
       margin: 22px 0 0;
-      max-width: 150px;
       color: var(--muted);
       font-size: 13px;
       line-height: 1.55;
     }
 
+    .column {
+      min-width: 0;
+    }
+
     details {
-      width: min(230px, 100%);
+      width: min(250px, 100%);
       margin: 0 0 24px;
+      padding: 15px 0 2px;
+      border-top: 1px solid var(--line);
+    }
+
+    details[open] {
+      border-color: var(--line-strong);
     }
 
     summary {
-      list-style: none;
-      cursor: pointer;
       display: inline-flex;
       align-items: baseline;
       gap: 7px;
       color: var(--text);
-      font-weight: 720;
+      cursor: pointer;
       font-size: 14px;
+      font-weight: 740;
       line-height: 1.35;
-      user-select: none;
+      list-style: none;
       outline: none;
+      user-select: none;
     }
 
     summary::-webkit-details-marker {
@@ -98,69 +160,123 @@
 
     summary::after {
       content: "+";
-      color: var(--muted);
-      font-weight: 500;
+      color: var(--accent);
+      font-weight: 520;
       transform: translateY(-1px);
-      transition: transform 160ms ease, color 160ms ease;
+      transition: color 180ms ease, transform 180ms ease;
+    }
+
+    summary:hover::after,
+    summary:focus-visible::after {
+      color: var(--accent-cool);
+      transform: translateY(-1px) rotate(90deg);
     }
 
     details[open] summary::after {
-      content: "−";
-      color: var(--text);
+      content: "-";
+      color: var(--accent-cool);
+    }
+
+    summary:focus-visible,
+    a:focus-visible {
+      border-radius: 4px;
+      outline: 2px solid var(--accent-soft);
+      outline-offset: 4px;
     }
 
     .links {
-      margin-top: 13px;
       display: grid;
       gap: 11px;
-      animation: fadeIn 160ms ease-out both;
+      margin-top: 14px;
+      animation: fadeIn 180ms ease-out both;
     }
 
     a {
-      color: var(--link);
+      color: #403d38;
       text-decoration: none;
       line-height: 1.35;
-      transition: color 160ms ease, transform 160ms ease;
+      transition: color 180ms ease, transform 180ms ease;
     }
 
     a:hover {
-      color: var(--link-hover);
+      color: var(--text);
     }
 
     .links a {
+      position: relative;
       display: block;
       width: fit-content;
+      max-width: 100%;
+      padding: 2px 0 2px 15px;
       font-size: 14px;
     }
 
-    .links a::after {
+    .links a::before {
+      position: absolute;
+      top: 0.78em;
+      left: 0;
+      width: 5px;
+      height: 5px;
+      border: 1px solid currentColor;
+      border-radius: 50%;
       content: "";
+      opacity: 0.42;
+      transform: translateY(-50%);
+      transition: background 180ms ease, border-color 180ms ease, opacity 180ms ease;
+    }
+
+    .links a::after {
       display: block;
       width: 0;
       height: 1px;
       margin-top: 2px;
-      background: currentColor;
-      transition: width 180ms ease;
+      content: "";
+      background: linear-gradient(90deg, var(--accent), var(--accent-cool));
+      transition: width 190ms ease;
     }
 
-    .links a:hover::after {
+    .links a:hover,
+    .links a:focus-visible {
+      transform: translateX(2px);
+    }
+
+    .links a:hover::before,
+    .links a:focus-visible::before {
+      background: var(--accent);
+      border-color: var(--accent);
+      opacity: 0.9;
+    }
+
+    .links a:hover::after,
+    .links a:focus-visible::after {
       width: 100%;
     }
 
     .flower-wrap {
-      position: relative;
       z-index: 1;
+      align-self: start;
       justify-self: end;
-      width: min(330px, 34vw);
+      width: min(300px, 18.5vw);
       aspect-ratio: 1;
-      opacity: 0.92;
+      opacity: 0.95;
+    }
+
+    .flower-wrap::before {
+      position: absolute;
+      inset: 11%;
+      z-index: -1;
+      border-radius: 50%;
+      content: "";
+      background: rgba(255, 255, 252, 0.36);
+      box-shadow: var(--shadow);
+      filter: blur(1px);
     }
 
     .flower {
+      display: block;
       width: 100%;
       height: 100%;
-      display: block;
-      filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.018));
+      filter: drop-shadow(0 28px 36px rgba(78, 65, 48, 0.075));
     }
 
     .flower path,
@@ -171,22 +287,22 @@
 
     .footer {
       position: fixed;
-      left: clamp(26px, 6.4vw, 72px);
-      right: clamp(26px, 6.4vw, 72px);
+      right: clamp(26px, 6.4vw, 76px);
       bottom: clamp(22px, 4.5vw, 46px);
+      left: clamp(26px, 6.4vw, 76px);
       z-index: 2;
       display: flex;
       justify-content: space-between;
       gap: 24px;
       color: var(--muted);
       font-size: 12px;
-      letter-spacing: -0.005em;
+      letter-spacing: 0;
       pointer-events: none;
     }
 
     .footer a {
-      pointer-events: auto;
       color: var(--muted);
+      pointer-events: auto;
     }
 
     .footer a:hover {
@@ -204,12 +320,28 @@
       }
     }
 
-    @media (max-width: 960px) {
+    @media (max-width: 1080px) {
       .page {
+        grid-template-columns: minmax(150px, 0.8fr) repeat(3, minmax(150px, 1fr));
+      }
+
+      .flower-wrap {
+        position: fixed;
+        right: clamp(20px, 5vw, 54px);
+        bottom: 72px;
+        width: min(260px, 35vw);
+        opacity: 0.48;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        min-height: auto;
         grid-template-columns: 1fr 1fr;
         align-items: start;
-        padding-top: 70px;
-        padding-bottom: 120px;
+        gap: 24px clamp(26px, 8vw, 56px);
+        padding-top: 58px;
+        padding-bottom: 132px;
       }
 
       .intro {
@@ -221,40 +353,50 @@
       }
 
       .flower-wrap {
-        position: fixed;
-        right: 24px;
-        bottom: 66px;
-        width: min(230px, 44vw);
-        opacity: 0.52;
+        right: -34px;
+        bottom: 64px;
+        width: 230px;
+        opacity: 0.34;
       }
     }
 
     @media (max-width: 560px) {
-      body {
-        font-size: 14px;
-      }
-
       .page {
-        min-height: auto;
         grid-template-columns: 1fr;
-        gap: 24px;
-        padding: 52px 28px 136px;
+        gap: 18px;
+        padding: 52px 28px 138px;
       }
 
       details {
-        margin-bottom: 8px;
+        width: 100%;
+        margin-bottom: 0;
+        padding-top: 14px;
+      }
+
+      .links {
+        grid-template-columns: 1fr;
       }
 
       .flower-wrap {
+        right: -54px;
+        bottom: 58px;
         width: 220px;
-        right: -18px;
-        bottom: 60px;
-        opacity: 0.38;
       }
 
       .footer {
         display: block;
         line-height: 1.8;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
       }
     }
   </style>
@@ -271,7 +413,6 @@
       <details open>
         <summary>Data</summary>
         <div class="links">
-          <!-- Replace # with your real links later -->
           <a href="us_customs_query_tool.html">US customs query</a>
           <a href="un_comtrade_inquiry_tool.html">UN Comtrade query</a>
           <a href="hkex_intraday_dashboard">HKEx dashboard</a>
@@ -284,7 +425,6 @@
       <details open>
         <summary>Research</summary>
         <div class="links">
-          <!-- Replace # with your real links later -->
           <a href="#">Market notes</a>
           <a href="us_aidc_map">U.S. AIDC Buildout Map</a>
           <a href="#">Project archive</a>
@@ -296,7 +436,6 @@
       <details open>
         <summary>Connect</summary>
         <div class="links">
-          <!-- Replace # with your real links later -->
           <a href="#">Coding</a>
           <a href="#">Read.cv</a>
           <a href="mailto:your-email@example.com">t.f.@work</a>
@@ -306,54 +445,69 @@
 
     <aside class="flower-wrap" aria-hidden="true">
       <svg class="flower" viewBox="0 0 360 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="petalFill" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(180 180) rotate(90) scale(158)">
+            <stop stop-color="#FBFAF7" />
+            <stop offset="0.55" stop-color="#E7E3D9" />
+            <stop offset="1" stop-color="#CFC8BA" />
+          </radialGradient>
+          <linearGradient id="accentStroke" x1="84" y1="70" x2="276" y2="290" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#B06442" />
+            <stop offset="1" stop-color="#5D7776" />
+          </linearGradient>
+          <filter id="softBlur" x="28" y="28" width="304" height="304" color-interpolation-filters="sRGB">
+            <feGaussianBlur stdDeviation="10" />
+          </filter>
+        </defs>
+
+        <circle cx="180" cy="180" r="118" fill="#ffffff" opacity="0.22" filter="url(#softBlur)" />
+
         <g transform="translate(180 180)">
-          <path d="M0 -20C24 -72 54 -92 81 -81C108 -70 111 -35 69 -3C109 -8 137 6 142 36C147 66 119 88 69 67C101 106 98 139 72 153C45 168 15 148 0 93C-15 148 -45 168 -72 153C-98 139 -101 106 -69 67C-119 88 -147 66 -142 36C-137 6 -109 -8 -69 -3C-111 -35 -108 -70 -81 -81C-54 -92 -24 -72 0 -20Z"
-            fill="#dededb"/>
-          <circle cx="0" cy="0" r="24" fill="#f7f7f5"/>
-          <circle cx="0" cy="0" r="16" fill="#e7e7e3"/>
+          <path d="M0 -30C20 -92 56 -118 90 -105C124 -92 126 -48 77 -8C133 -15 168 7 169 45C170 84 132 106 77 78C116 128 108 168 73 182C38 196 8 165 0 101C-8 165 -38 196 -73 182C-108 168 -116 128 -77 78C-132 106 -170 84 -169 45C-168 7 -133 -15 -77 -8C-126 -48 -124 -92 -90 -105C-56 -118 -20 -92 0 -30Z"
+            fill="url(#petalFill)" />
+          <path d="M0 -30C20 -92 56 -118 90 -105C124 -92 126 -48 77 -8C133 -15 168 7 169 45C170 84 132 106 77 78C116 128 108 168 73 182C38 196 8 165 0 101C-8 165 -38 196 -73 182C-108 168 -116 128 -77 78C-132 106 -170 84 -169 45C-168 7 -133 -15 -77 -8C-126 -48 -124 -92 -90 -105C-56 -118 -20 -92 0 -30Z"
+            stroke="url(#accentStroke)" stroke-width="1.2" opacity="0.38" />
 
-          <g stroke="#f8f8f6" stroke-width="2" stroke-linecap="round" opacity="0.88">
-            <line x1="0" y1="-18" x2="0" y2="-78"/>
-            <line x1="12" y1="-14" x2="46" y2="-58"/>
-            <line x1="18" y1="-2" x2="76" y2="-2"/>
-            <line x1="12" y1="14" x2="46" y2="58"/>
-            <line x1="0" y1="18" x2="0" y2="78"/>
-            <line x1="-12" y1="14" x2="-46" y2="58"/>
-            <line x1="-18" y1="-2" x2="-76" y2="-2"/>
-            <line x1="-12" y1="-14" x2="-46" y2="-58"/>
+          <g stroke="#FBFAF7" stroke-width="1.4" stroke-linecap="round" opacity="0.82">
+            <line x1="0" y1="-24" x2="0" y2="-96" />
+            <line x1="16" y1="-17" x2="58" y2="-74" />
+            <line x1="24" y1="-1" x2="102" y2="-1" />
+            <line x1="16" y1="17" x2="58" y2="74" />
+            <line x1="0" y1="24" x2="0" y2="96" />
+            <line x1="-16" y1="17" x2="-58" y2="74" />
+            <line x1="-24" y1="-1" x2="-102" y2="-1" />
+            <line x1="-16" y1="-17" x2="-58" y2="-74" />
           </g>
 
-          <g fill="#f8f8f6" opacity="0.9">
-            <circle cx="0" cy="-82" r="4"/>
-            <circle cx="50" cy="-62" r="4"/>
-            <circle cx="82" cy="-2" r="4"/>
-            <circle cx="50" cy="62" r="4"/>
-            <circle cx="0" cy="82" r="4"/>
-            <circle cx="-50" cy="62" r="4"/>
-            <circle cx="-82" cy="-2" r="4"/>
-            <circle cx="-50" cy="-62" r="4"/>
+          <g fill="#FBFAF7" opacity="0.84">
+            <circle cx="0" cy="-101" r="3.7" />
+            <circle cx="62" cy="-78" r="3.7" />
+            <circle cx="107" cy="-1" r="3.7" />
+            <circle cx="62" cy="78" r="3.7" />
+            <circle cx="0" cy="101" r="3.7" />
+            <circle cx="-62" cy="78" r="3.7" />
+            <circle cx="-107" cy="-1" r="3.7" />
+            <circle cx="-62" cy="-78" r="3.7" />
           </g>
 
-          <g fill="#f8f8f6" opacity="0.55">
-            <circle cx="-42" cy="-22" r="3"/>
-            <circle cx="42" cy="-22" r="3"/>
-            <circle cx="-42" cy="22" r="3"/>
-            <circle cx="42" cy="22" r="3"/>
-          </g>
+          <circle cx="0" cy="0" r="31" fill="#FBFAF7" opacity="0.94" />
+          <circle cx="0" cy="0" r="21" fill="#E7E3D9" />
+          <circle cx="0" cy="0" r="8" fill="#B06442" opacity="0.72" />
+          <circle cx="0" cy="0" r="45" stroke="#FBFAF7" stroke-width="1" opacity="0.54" />
+          <circle cx="0" cy="0" r="134" stroke="#151515" stroke-width="0.8" stroke-dasharray="2 12" opacity="0.13" />
         </g>
       </svg>
     </aside>
   </main>
 
   <footer class="footer">
-    <span>© <span id="year"></span> Research Hub</span>
+    <span>&copy; <span id="year"></span> Research Hub</span>
     <span>Replace placeholder links manually</span>
   </footer>
 
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
 
-    // Optional: one-click email copy if you later replace this with your real email.
     document.querySelectorAll('a[href^="mailto:"]').forEach((link) => {
       link.addEventListener("click", (event) => {
         const email = link.getAttribute("href").replace("mailto:", "");
@@ -362,7 +516,7 @@
           navigator.clipboard.writeText(email);
           link.textContent = "Email copied";
           setTimeout(() => {
-            link.textContent = "Copy email";
+            link.textContent = "t.f.@work";
           }, 1200);
         }
       });
