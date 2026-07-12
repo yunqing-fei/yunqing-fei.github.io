@@ -148,17 +148,28 @@ function splitFreeText(source) {
   };
 }
 
+function normaliseMarker(marker) {
+  return marker.toLowerCase().replace(/\s+/g, "");
+}
+
 function splitBullets(text) {
   if (!text) return [];
-  const chunks = text.split(/\s*(?=\((?:i{1,3}|iv|v)\)\s*)/i).filter(Boolean);
-  return chunks.map((chunk) => {
-    const match = chunk.match(/^\(([^)]+)\)\s*([\s\S]*)$/);
-    if (!match) return { marker: "", body: normalizeSpaces(chunk) };
+
+  const markerPattern = /[（(]\s*(i{1,3}|iv|v)\s*[）)]/gi;
+  const matches = [...text.matchAll(markerPattern)];
+
+  if (!matches.length) return [];
+
+  return matches.map((match, index) => {
+    const nextMatch = matches[index + 1];
+    const bodyStart = match.index + match[0].length;
+    const bodyEnd = nextMatch ? nextMatch.index : text.length;
+
     return {
-      marker: match[1].toLowerCase(),
-      body: normalizeSpaces(match[2])
+      marker: normaliseMarker(match[1]),
+      body: normalizeSpaces(text.slice(bodyStart, bodyEnd))
     };
-  });
+  }).filter((bullet) => bullet.body);
 }
 
 function makeMailHref(email, subject) {
