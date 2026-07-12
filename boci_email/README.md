@@ -30,3 +30,7 @@ Paste the published report URL into the `Report link` field before generating. T
 The `Email title line` field is filled automatically from the pasted notification. Edit it before generating when an exact title is required; manually entered text is preserved as written.
 
 The free-text section is arranged as English bullets followed by the Chinese title, analyst names, and Chinese bullets. Markers copied from common email formats are supported, including `(i)`, `（i）`, `[i]`, and Unicode Roman numerals such as `（ⅰ）`.
+
+## Outlook copying
+
+Use `Copy for Outlook` to copy the rendered email, including its inline fonts, sizes, colors, emphasis, links, and paragraph spacing. Paste directly into an Outlook draft with normal paste. `Copy text` intentionally removes rich formatting.

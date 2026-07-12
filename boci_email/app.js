@@ -95,11 +95,57 @@ function normalizeSpaces(value = "") {
     .trim();
 }
 
+const REPORT_FIELD_LABELS = [
+  "Is this report part of Sector Report?",
+  "Report Type",
+  "Report Reason",
+  "Main entity",
+  "Title",
+  "Document ID",
+  "Primary analyst",
+  "Secondary analyst",
+  "Third analyst",
+  "Created by",
+  "Last user",
+  "Management Approval",
+  "Company List File?",
+  "Publication time",
+  "Related Companies",
+  "Free text"
+];
+
+function escapeRegExp(value = "") {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function getField(source, label) {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(`\\*\\*${escaped}:\\*\\*\\s*([^\\n]*)`, "i");
-  const match = source.match(pattern);
-  return match ? stripMarkdown(match[1]) : "";
+  const normalizedSource = source
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\u00a0\u2007\u202f]/g, " ")
+    .replace(/[\u200b-\u200d\ufeff]/g, "");
+  const escapedLabel = escapeRegExp(label);
+  const linePattern = new RegExp(
+    `^[\\s>*•-]*(?:\\*\\*)?${escapedLabel}\\s*[:：]\\s*(?:\\*\\*)?\\s*(.*?)\\s*$`,
+    "i"
+  );
+
+  const followingLabels = REPORT_FIELD_LABELS
+    .filter((fieldLabel) => fieldLabel.toLowerCase() !== label.toLowerCase())
+    .map(escapeRegExp)
+    .join("|");
+  const flattenedPattern = new RegExp(
+    `(?:\\*\\*)?${escapedLabel}\\s*[:：]\\s*(?:\\*\\*)?\\s*(.*?)(?=\\s*(?:\\*\\*)?(?:${followingLabels})\\s*[:：]|$)`,
+    "is"
+  );
+  const flattenedMatch = normalizedSource.match(flattenedPattern);
+  if (flattenedMatch) return stripMarkdown(flattenedMatch[1]);
+
+  for (const line of normalizedSource.split("\n")) {
+    const match = line.match(linePattern);
+    if (match) return stripMarkdown(match[1]);
+  }
+
+  return "";
 }
 
 function parseEmailDirectory() {
@@ -420,15 +466,45 @@ function fallbackCopy(value) {
   textArea.remove();
 }
 
+function buildOutlookClipboardHtml(html) {
+  return `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#ffffff;color:#000000;font-family:Arial,Helvetica,sans-serif"><div style="background:#ffffff;color:#000000;font-family:Arial,Helvetica,sans-serif">${html}</div></body></html>`;
+}
+
+function copyRenderedHtml(html) {
+  const copyContainer = document.createElement("div");
+  copyContainer.setAttribute("contenteditable", "true");
+  copyContainer.setAttribute("aria-hidden", "true");
+  copyContainer.style.position = "fixed";
+  copyContainer.style.left = "-10000px";
+  copyContainer.style.top = "0";
+  copyContainer.style.width = "760px";
+  copyContainer.style.background = "#ffffff";
+  copyContainer.innerHTML = html;
+  document.body.append(copyContainer);
+
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(copyContainer);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  const copied = document.execCommand("copy");
+  selection.removeAllRanges();
+  copyContainer.remove();
+  return copied;
+}
+
 async function copyHtmlToClipboard() {
   if (!state.generatedHtml) {
     setStatus("Generate the email first.", true);
     return;
   }
 
-  try {
-    if (window.ClipboardItem && navigator.clipboard?.write) {
-      const htmlBlob = new Blob([state.generatedHtml], { type: "text/html" });
+  const outlookHtml = buildOutlookClipboardHtml(state.generatedHtml);
+
+  if (window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      const htmlBlob = new Blob([outlookHtml], { type: "text/html" });
       const textBlob = new Blob([state.generatedText], { type: "text/plain" });
       await navigator.clipboard.write([
         new ClipboardItem({
@@ -436,16 +512,24 @@ async function copyHtmlToClipboard() {
           "text/plain": textBlob
         })
       ]);
-      setStatus("Rich HTML copied.");
+      setStatus("Rich email copied for Outlook.");
+      return;
+    } catch (error) {
+      // Continue to the rendered-selection fallback used by older browsers.
+    }
+  }
+
+  try {
+    if (copyRenderedHtml(state.generatedHtml)) {
+      setStatus("Rich email copied for Outlook.");
       return;
     }
-
-    fallbackCopy(state.generatedHtml);
-    setStatus("HTML copied.");
   } catch (error) {
-    fallbackCopy(state.generatedHtml);
-    setStatus("HTML copied with fallback.");
+    // Continue to the plain-text fallback when browser clipboard access is blocked.
   }
+
+  fallbackCopy(state.generatedText);
+  setStatus("Plain text copied because rich clipboard access was blocked.", true);
 }
 
 async function copyTextToClipboard() {
