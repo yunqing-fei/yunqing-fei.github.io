@@ -356,12 +356,8 @@ function buildEmailHtml(report) {
   const chineseBulletHtml = report.chineseBullets
     .map((bullet) => `<p style="margin:0 0 8pt 0"><span style="${EMAIL_STYLES.englishBody}"><b>(${escapeHtml(bullet.marker)}) </b></span>${renderMixedFontRuns(bullet.body, EMAIL_STYLES.chineseBody, EMAIL_STYLES.englishBody)}</p>`)
     .join("\n");
-  const reportLink = reportUrl
-    ? `<a href="${escapeHtml(reportUrl)}"><span style="${EMAIL_STYLES.analystLink}"><u>Click here to read the report.</u></span></a><span style="${EMAIL_STYLES.analyst}"> (This link will be valid for the next 365 days)</span><br>`
-    : `<span style="${EMAIL_STYLES.analyst}"><b>Click here to read the report.</b> (add report link)</span><br>`;
-  const websiteLink = websiteUrl
-    ? `<span style="${EMAIL_STYLES.analyst}">For more BOCI reports, please visit the </span><a href="${escapeHtml(websiteUrl)}"><span style="${EMAIL_STYLES.analystLink}"><u>BOCI Research website</u></span></a><span style="${EMAIL_STYLES.analyst}">.</span><br>`
-    : `<span style="${EMAIL_STYLES.analyst}">For more BOCI reports, please visit the BOCI Research website.</span><br>`;
+  const reportLink = "";
+  const websiteLink = "";
 
   return `
     <span class="report-title" style="${EMAIL_STYLES.title}"><b><u>${escapeHtml(englishTitle)}</u></b></span><span style="${EMAIL_STYLES.analyst}"> </span><br>
@@ -371,7 +367,7 @@ function buildEmailHtml(report) {
     <p class="analysts" style="margin:0 0 10pt 0">${chineseAnalysts}</p>
     ${chineseBulletHtml}
     <div class="links">${reportLink}${websiteLink}</div>
-    <span class="company-signature" style="${EMAIL_STYLES.analyst}"><b>BOCI Research Limited</b></span><br>
+    <span class="company-signature" style="${EMAIL_STYLES.analyst}"><b>BOCI Securities Limited</b></span><br>
     <span class="disclaimer-rule" style="${EMAIL_STYLES.analyst}">*******************************************************************************************</span>
     ${renderResearchDisclaimer()}
     <br><br><br><br>
