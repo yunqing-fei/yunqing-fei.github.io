@@ -1,17 +1,17 @@
-const APP_VERSION = "2026.07.13.2";
+const APP_VERSION = "0.1.1";
 
 const DEFAULT_EMAIL_DIRECTORY = {
   "Tony FEI": {
-    email: "tony.fei@fill-later.example",
+    email: "tonyyq.fei@bocigroup.com",
     zhName: "费云青"
   },
   "Jolin LIU": {
-    email: "jolin.liu@fill-later.example",
+    email: "jolinz.liu@bocigroup.com",
     zhName: "刘卓琳"
   },
-  "Keith CHAN": {
-    email: "keith.chan@fill-later.example",
-    zhName: "陈敬"
+  "Zhuoran WANG": {
+    email: "zhuoran.wang@bocigroup.com",
+    zhName: "王卓然"
   }
 };
 
