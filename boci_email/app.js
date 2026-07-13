@@ -1,4 +1,4 @@
-const APP_VERSION = "0.1.1";
+const APP_VERSION = "2026.7.13.3";
 
 const DEFAULT_EMAIL_DIRECTORY = {
   "Tony FEI": {
