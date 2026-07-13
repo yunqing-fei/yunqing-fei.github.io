@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>BOCI Report Email Builder</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260713-2" />
   </head>
   <body>
     <main class="app-shell">
@@ -14,9 +14,12 @@
             <p class="eyebrow">BOCI Research</p>
             <h1 id="input-title">Report email builder</h1>
           </div>
-          <button id="sampleButton" class="icon-button" type="button" title="Load sample input" aria-label="Load sample input">
-            <span aria-hidden="true">↺</span>
-          </button>
+          <div class="heading-actions">
+            <span id="appVersion" class="version-label" aria-label="Application version"></span>
+            <button id="sampleButton" class="icon-button" type="button" title="Load sample input" aria-label="Load sample input">
+              <span aria-hidden="true">↺</span>
+            </button>
+          </div>
         </div>
 
         <label class="field">
@@ -72,6 +75,6 @@
       </div>
     </template>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20260713-2"></script>
   </body>
 </html>

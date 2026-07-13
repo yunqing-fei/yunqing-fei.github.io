@@ -1,3 +1,5 @@
+const APP_VERSION = "2026.07.13.2";
+
 const DEFAULT_EMAIL_DIRECTORY = {
   "Tony FEI": {
     email: "tony.fei@fill-later.example",
@@ -47,6 +49,7 @@ const state = {
 };
 
 const elements = {
+  appVersion: document.querySelector("#appVersion"),
   sourceInput: document.querySelector("#sourceInput"),
   titleInput: document.querySelector("#titleInput"),
   reportUrl: document.querySelector("#reportUrl"),
@@ -353,8 +356,12 @@ function buildEmailHtml(report) {
   const chineseBulletHtml = report.chineseBullets
     .map((bullet) => `<p style="margin:0 0 8pt 0"><span style="${EMAIL_STYLES.englishBody}"><b>(${escapeHtml(bullet.marker)}) </b></span>${renderMixedFontRuns(bullet.body, EMAIL_STYLES.chineseBody, EMAIL_STYLES.englishBody)}</p>`)
     .join("\n");
-  const reportLink = "";
-  const websiteLink = "";
+  const reportLink = reportUrl
+    ? `<a href="${escapeHtml(reportUrl)}"><span style="${EMAIL_STYLES.analystLink}"><u>Click here to read the report.</u></span></a><span style="${EMAIL_STYLES.analyst}"> (This link will be valid for the next 365 days)</span><br>`
+    : `<span style="${EMAIL_STYLES.analyst}"><b>Click here to read the report.</b> (add report link)</span><br>`;
+  const websiteLink = websiteUrl
+    ? `<span style="${EMAIL_STYLES.analyst}">For more BOCI reports, please visit the </span><a href="${escapeHtml(websiteUrl)}"><span style="${EMAIL_STYLES.analystLink}"><u>BOCI Research website</u></span></a><span style="${EMAIL_STYLES.analyst}">.</span><br>`
+    : `<span style="${EMAIL_STYLES.analyst}">For more BOCI reports, please visit the BOCI Research website.</span><br>`;
 
   return `
     <span class="report-title" style="${EMAIL_STYLES.title}"><b><u>${escapeHtml(englishTitle)}</u></b></span><span style="${EMAIL_STYLES.analyst}"> </span><br>
@@ -549,6 +556,7 @@ async function copyTextToClipboard() {
 }
 
 function initialize() {
+  elements.appVersion.textContent = `v${APP_VERSION}`;
   elements.emailDirectory.value = JSON.stringify(DEFAULT_EMAIL_DIRECTORY, null, 2);
   renderEmptyState();
 
