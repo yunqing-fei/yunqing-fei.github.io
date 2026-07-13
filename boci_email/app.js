@@ -232,7 +232,7 @@ function splitBullets(text) {
 }
 
 function makeMailHref(email, subject) {
-  return escapeHtml(`mailto:${email}?subject=${encodeURIComponent(subject)}`);
+  return escapeHtml(`mailto:${email}`);
 }
 
 function makeEnglishMailLink(name, directory, subject) {
