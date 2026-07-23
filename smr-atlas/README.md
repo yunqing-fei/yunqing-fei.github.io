@@ -1,7 +1,27 @@
 # Global SMR Atlas
 
-An interactive, mobile-friendly SMR project map with a lightweight data
-manager.
+An interactive, mobile-friendly SMR project map, design database, and
+lightweight data manager.
+
+## SMR design database
+
+Open **Design database** in the site navigation, or append `#designs` to the
+site URL. The catalogue contains the 133 records published in the
+[World Nuclear Association SMR Design Database](https://world-nuclear.org/information-library/nuclear-power-reactors/small-modular-reactors/small-modular-reactor-smr-design-database),
+updated 1 July 2026.
+
+The source coordinates identify each developer's headquarters rather than a
+reactor project site. The map labels them as **SMR design · developer HQ** to
+keep that distinction explicit.
+
+Refresh the checked-in catalogue from the source page with:
+
+```sh
+npm run update:designs
+```
+
+Review the generated `data/smr-designs.json`, then commit and publish it in the
+same way as the other static site data.
 
 ## GitHub Pages
 
@@ -20,7 +40,7 @@ the site works at both `https://username.github.io/` and
 ## Data manager on static hosting
 
 Open the **Data manager** link, or append `#admin` to the site URL. The initial
-password is `****`.
+case-sensitive password is `BOCI`.
 
 GitHub Pages cannot run a database or securely protect a client-only page.
 There, edits are saved only in the current browser. To publish them:

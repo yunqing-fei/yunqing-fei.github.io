@@ -14,3 +14,5 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 - Preserve its navy, cobalt, sea-glass, and ivory design language; the world map is the dominant surface.
 - Optimize the full product for desktop, portrait/vertical screens, and touch-first mobile layouts.
 - The data manager is a separate `/admin` route with a simple, case-sensitive initial password of `BOCI`.
+- The design catalogue is sourced from the World Nuclear Association SMR Design Database and currently contains all 133 records from its 1 July 2026 update.
+- Treat catalogue coordinates as developer-headquarters locations, never as reactor project sites; label them explicitly on the map and in design details.
