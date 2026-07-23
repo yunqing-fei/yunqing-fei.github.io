@@ -35,4 +35,8 @@ test("exposes the catalogue route and design headquarters map layer", async () =
   assert.match(source, /renderDesignCatalogue/);
   assert.match(source, /map-design-toggle/);
   assert.match(source, /developer HQ/i);
+  assert.match(
+    source,
+    /class="data-manager-link database-page-link" href="\.\/#designs"/,
+  );
 });

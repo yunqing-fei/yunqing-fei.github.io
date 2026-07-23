@@ -1,4 +1,5 @@
 import { DEFAULT_DATA } from "../data/projects.js";
+import { NRC_APPLICATIONS } from "../data/nrc-applications.js";
 
 const STATUS_ORDER = [
   "Operable",
@@ -14,6 +15,18 @@ const STATUS_META = {
   "Pre-investment": { color: "#8e969f", className: "pre-investment" },
 };
 
+const DESIGN_STATUS_ORDER = [
+  "In operation",
+  "Under construction",
+  "Design & development",
+];
+
+const DESIGN_STATUS_META = {
+  "In operation": { color: "#6aa93d", className: "operable" },
+  "Under construction": { color: "#176ee8", className: "construction" },
+  "Design & development": { color: "#8e969f", className: "pre-investment" },
+};
+
 const app = document.querySelector("#app");
 const LOCAL_DATA_KEY = "smr-atlas-dataset-v1";
 const STATIC_PASSWORD = "BOCI";
@@ -24,7 +37,7 @@ function detectAppRoot() {
   root.search = "";
   root.pathname = root.pathname
     .replace(/index\.html$/i, "")
-    .replace(/admin\/?$/i, "");
+    .replace(/(?:admin|designs|nrc)\/?$/i, "");
   if (!root.pathname.endsWith("/")) root.pathname += "/";
   return root;
 }
@@ -35,6 +48,12 @@ const apiUrl = (resource) => appUrl(`api/${resource}`);
 const isAdminRoute = () =>
   window.location.hash.toLowerCase() === "#admin" ||
   /\/admin\/?$/i.test(window.location.pathname);
+const isDesignRoute = () =>
+  window.location.hash.toLowerCase().startsWith("#designs") ||
+  /\/designs\/?$/i.test(window.location.pathname);
+const isNrcRoute = () =>
+  window.location.hash.toLowerCase().startsWith("#nrc") ||
+  /\/nrc\/?$/i.test(window.location.pathname);
 
 const state = {
   data: structuredClone(DEFAULT_DATA),
@@ -46,9 +65,35 @@ const state = {
   region: "All",
   vendor: "All",
   projectType: "All",
+  showDesigns: true,
+  detailKind: "project",
   map: null,
   markerLayer: null,
   markers: new Map(),
+  designCatalog: {
+    source: {},
+    designs: [],
+  },
+  designFiltered: [],
+  selectedDesignId: null,
+  designSearch: "",
+  designStatuses: new Set(DESIGN_STATUS_ORDER),
+  designType: "All",
+  designCountry: "All",
+  designSpectrum: "All",
+  designSort: "name",
+  catalogSearch: "",
+  catalogStatus: "All",
+  catalogType: "All",
+  catalogCountry: "All",
+  catalogSpectrum: "All",
+  nrcSearch: "",
+  nrcOutcomes: new Set(["active", "licensed", "operating", "failed"]),
+  nrcDesign: "All",
+  nrcLicense: "All",
+  nrcView: "timeline",
+  nrcSort: "application",
+  nrcSelectedId: "clinch-river-1",
   adminPassword: "",
   adminDraft: null,
   adminSearch: "",
@@ -152,6 +197,26 @@ async function fetchDataset() {
   }
 }
 
+async function fetchDesignCatalog() {
+  try {
+    const response = await fetch(appUrl("data/smr-designs.json"), {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Design catalogue request failed");
+    const catalogue = await response.json();
+    if (!Array.isArray(catalogue.designs)) {
+      throw new Error("Design catalogue shape is invalid");
+    }
+    state.designCatalog = catalogue;
+    state.selectedDesignId ||= catalogue.designs[0]?.id || null;
+  } catch {
+    state.designCatalog = {
+      source: {},
+      designs: [],
+    };
+  }
+}
+
 function projectMatches(project) {
   const haystack = [
     project.name,
@@ -185,12 +250,32 @@ function statusCount(status) {
   return state.data.projects.filter((project) => project.status === status).length;
 }
 
+function designUnique(field) {
+  return [
+    ...new Set(
+      state.designCatalog.designs
+        .map((design) => design[field])
+        .filter((value) => value !== null && value !== undefined && value !== ""),
+    ),
+  ].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
 function logo() {
   return `
-    <a class="brand" href="./" aria-label="Global SMR Atlas home">
+    <a class="brand" href="./#map" aria-label="Global SMR Atlas home">
       <span class="brand-icon" aria-hidden="true"><i class="ph ph-globe-hemisphere-west"></i></span>
       <span>Global SMR Atlas</span>
     </a>
+  `;
+}
+
+function primaryNav(active) {
+  return `
+    <nav class="topbar-center" aria-label="Primary navigation">
+      <a href="./#map" class="${active === "map" ? "is-active" : ""}">Map</a>
+      <a href="./#designs" class="${active === "designs" ? "is-active" : ""}">Design database</a>
+      <a href="./#nrc" class="${active === "nrc" ? "is-active" : ""}">NRC ledger</a>
+    </nav>
   `;
 }
 
@@ -200,11 +285,15 @@ function renderMain() {
     <div class="atlas-shell">
       <header class="topbar">
         ${logo()}
-        <div class="topbar-center">Atlas Observatory</div>
+        ${primaryNav("map")}
         <div class="topbar-actions">
           <button class="icon-button filter-trigger" id="mobile-filter-open" aria-label="Open filters">
             <i class="ph ph-sliders-horizontal"></i>
           </button>
+          <a class="data-manager-link database-page-link" href="./#designs" aria-label="Design database">
+            <i class="ph ph-database" aria-hidden="true"></i>
+            <span>Design database</span>
+          </a>
           <a class="data-manager-link" href="./#admin">
             <i class="ph ph-shield-check" aria-hidden="true"></i>
             <span>Data manager</span>
@@ -290,6 +379,11 @@ function renderMain() {
               <i class="ph ph-sliders-horizontal"></i><span>Filters</span>
             </button>
           </div>
+          <button class="map-design-toggle ${state.showDesigns ? "is-active" : ""}" id="map-design-toggle" aria-pressed="${state.showDesigns}">
+            <i class="ph ph-atom"></i>
+            <span>Design HQs</span>
+            <strong>${state.designCatalog.designs.length}</strong>
+          </button>
           <div id="map" role="application" aria-label="World map with SMR project markers"></div>
           <div class="map-empty" id="map-empty" hidden>
             <i class="ph ph-map-trifold"></i>
@@ -300,15 +394,16 @@ function renderMain() {
             ${STATUS_ORDER.map(
               (status) => `<span><i class="status-dot ${STATUS_META[status].className}"></i>${escapeHtml(status)}</span>`,
             ).join("")}
+            <span><i class="status-dot design-location"></i>SMR design · developer HQ</span>
           </div>
           <div class="map-note">
             <i class="ph ph-info"></i>
-            <span>${escapeHtml(state.data.sourceNote)}</span>
+            <span>${escapeHtml(state.data.sourceNote)} Design markers use developer headquarters coordinates from the World Nuclear Association design database.</span>
           </div>
         </section>
 
         <aside class="detail-panel" id="detail-panel" aria-label="Selected project details">
-          ${renderProjectDetail()}
+          ${renderMapDetail()}
         </aside>
       </section>
     </div>
@@ -358,6 +453,73 @@ function renderProjectDetail() {
     <a class="primary-button source-button" href="${escapeHtml(safeUrl(project.source))}" target="_blank" rel="noreferrer">
       View ${escapeHtml(project.sourceLabel || "project source")}
       <i class="ph ph-arrow-square-out"></i>
+    </a>
+  `;
+}
+
+function formatMeasure(value, unit) {
+  return value === null || value === undefined || value === ""
+    ? "Not stated"
+    : `${Number(value).toLocaleString()} ${unit}`;
+}
+
+function renderApplications(design, compact = false) {
+  const applications = [
+    ["electricity", "Electricity", "ph-lightning"],
+    ["lowTempHeat", "Low-temp heat", "ph-thermometer-simple"],
+    ["highTempHeat", "High-temp heat", "ph-fire"],
+    ["offGrid", "Off-grid", "ph-plugs"],
+  ];
+  return applications
+    .map(
+      ([field, label, icon]) => `
+        <span class="application-tag ${design[field] ? "is-available" : "is-unavailable"} ${compact ? "is-compact" : ""}">
+          <i class="ph ${design[field] ? icon : "ph-x"}"></i>${escapeHtml(label)}
+        </span>
+      `,
+    )
+    .join("");
+}
+
+function renderMapDetail() {
+  return state.detailKind === "design"
+    ? renderDesignMapDetail()
+    : renderProjectDetail();
+}
+
+function renderDesignMapDetail() {
+  const design = state.designCatalog.designs.find(
+    (item) => item.id === state.selectedDesignId,
+  );
+  if (!design) return renderProjectDetail();
+  const meta =
+    DESIGN_STATUS_META[design.designStatus] ||
+    DESIGN_STATUS_META["Design & development"];
+  return `
+    <div class="detail-head">
+      <span class="status-pill ${meta.className}"><i></i>${escapeHtml(design.designStatus)}</span>
+      <button class="icon-button detail-collapse" id="detail-collapse" aria-label="Collapse details">
+        <i class="ph ph-caret-down"></i>
+      </button>
+    </div>
+    <h2>${escapeHtml(design.name)}</h2>
+    <p class="location"><i class="ph ph-buildings"></i>Developer HQ: ${escapeHtml(design.hqCity)}, ${escapeHtml(design.country)}</p>
+    <dl class="project-facts">
+      <div><dt>Developer</dt><dd>${escapeHtml(design.developer)}</dd></div>
+      <div><dt>Reactor type</dt><dd>${escapeHtml(design.reactorType)}</dd></div>
+      <div><dt>Spectrum</dt><dd>${escapeHtml(design.spectrum)}</dd></div>
+      <div><dt>Fuel enrichment</dt><dd>${escapeHtml(design.fuelEnrichment || "Not stated")}</dd></div>
+      <div><dt>Outlet temperature</dt><dd>${formatMeasure(design.outletTemp, "°C")}</dd></div>
+      <div><dt>Thermal capacity</dt><dd>${formatMeasure(design.thermal, "MWt")}</dd></div>
+      <div><dt>Gross capacity</dt><dd>${formatMeasure(design.gross, "MWe")}</dd></div>
+    </dl>
+    <div class="detail-section">
+      <h3>Applications</h3>
+      <div class="application-list compact">${renderApplications(design, true)}</div>
+    </div>
+    <a class="primary-button source-button" href="./#designs/${encodeURIComponent(design.id)}">
+      Full design record
+      <i class="ph ph-arrow-right"></i>
     </a>
   `;
 }
@@ -425,6 +587,14 @@ function bindMainEvents() {
     document.getElementById(id)?.addEventListener("click", closePanel),
   );
 
+  document.getElementById("map-design-toggle")?.addEventListener("click", () => {
+    state.showDesigns = !state.showDesigns;
+    if (!state.showDesigns && state.detailKind === "design") {
+      state.detailKind = "project";
+    }
+    renderMain();
+  });
+
   document.getElementById("detail-collapse")?.addEventListener("click", () => {
     document.getElementById("detail-panel")?.classList.toggle("is-collapsed");
   });
@@ -448,7 +618,7 @@ function applyFilters() {
   const empty = document.getElementById("map-empty");
   if (empty) empty.hidden = state.filtered.length > 0;
   const detail = document.getElementById("detail-panel");
-  if (detail) detail.innerHTML = renderProjectDetail();
+  if (detail) detail.innerHTML = renderMapDetail();
   document.getElementById("detail-collapse")?.addEventListener("click", () => {
     detail?.classList.toggle("is-collapsed");
   });
@@ -504,6 +674,44 @@ function markerStyle(project, selected = false) {
   };
 }
 
+function designMarkerCoordinates(designs) {
+  const groups = new Map();
+  designs.forEach((design) => {
+    const key = `${Number(design.latitude).toFixed(5)},${Number(design.longitude).toFixed(5)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(design);
+  });
+
+  const positions = new Map();
+  groups.forEach((group) => {
+    group
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((design, index) => {
+        if (group.length === 1) {
+          positions.set(design.id, [
+            Number(design.latitude),
+            Number(design.longitude),
+          ]);
+          return;
+        }
+        const ring = Math.floor(index / 10);
+        const angle =
+          ((index % 10) / Math.min(10, group.length)) * Math.PI * 2;
+        const radius = 0.14 + ring * 0.1;
+        const longitudeScale = Math.max(
+          0.25,
+          Math.cos((Number(design.latitude) * Math.PI) / 180),
+        );
+        positions.set(design.id, [
+          Number(design.latitude) + Math.sin(angle) * radius,
+          Number(design.longitude) +
+            (Math.cos(angle) * radius) / longitudeScale,
+        ]);
+      });
+  });
+  return positions;
+}
+
 function updateMapMarkers() {
   if (!state.map || !state.markerLayer) return;
   state.markerLayer.clearLayers();
@@ -524,13 +732,49 @@ function updateMapMarkers() {
     state.markers.set(project.id, marker);
   });
 
+  if (state.showDesigns) {
+    const designs = state.designCatalog.designs.filter(
+      (design) =>
+        Number.isFinite(Number(design.latitude)) &&
+        Number.isFinite(Number(design.longitude)),
+    );
+    const positions = designMarkerCoordinates(designs);
+    designs.forEach((design) => {
+      const selected =
+        state.detailKind === "design" &&
+        design.id === state.selectedDesignId;
+      const marker = window.L.circleMarker(positions.get(design.id), {
+        radius: selected ? 8 : 4.5,
+        fillColor: "#2f9f9a",
+        color: "#ffffff",
+        weight: selected ? 4 : 1.5,
+        opacity: 1,
+        fillOpacity: 0.9,
+      });
+      marker.bindTooltip(
+        `<strong>${escapeHtml(design.name)}</strong><span>${escapeHtml(design.developer)} · developer HQ</span>`,
+        { direction: "top", className: "atlas-tooltip", offset: [0, -8] },
+      );
+      marker.on("click", () => selectDesign(design.id));
+      marker.addTo(state.markerLayer);
+      state.markers.set(`design:${design.id}`, marker);
+    });
+  }
+
   if (state.selectedId && state.markers.has(state.selectedId)) {
     state.markers.get(state.selectedId).bringToFront();
+  }
+  if (
+    state.detailKind === "design" &&
+    state.markers.has(`design:${state.selectedDesignId}`)
+  ) {
+    state.markers.get(`design:${state.selectedDesignId}`).bringToFront();
   }
 }
 
 function selectProject(id) {
   state.selectedId = id;
+  state.detailKind = "project";
   updateMapMarkers();
   const detail = document.getElementById("detail-panel");
   if (detail) {
@@ -544,6 +788,355 @@ function selectProject(id) {
   if (project && window.innerWidth < 700) {
     detail?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+}
+
+function selectDesign(id) {
+  state.selectedDesignId = id;
+  state.detailKind = "design";
+  updateMapMarkers();
+  const detail = document.getElementById("detail-panel");
+  if (detail) {
+    detail.classList.remove("is-collapsed");
+    detail.innerHTML = renderDesignMapDetail();
+    document.getElementById("detail-collapse")?.addEventListener("click", () => {
+      detail.classList.toggle("is-collapsed");
+    });
+  }
+  if (window.innerWidth < 700) {
+    detail?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function parseNews(design) {
+  return [design.newsLink1, design.newsLink2, design.newsLink3]
+    .filter(Boolean)
+    .map((value) => {
+      const [url = "", headline = "News article", date = ""] = String(value)
+        .split("|||")
+        .map((part) => part.trim());
+      return { url, headline, date };
+    })
+    .filter((item) => safeUrl(item.url) !== "#");
+}
+
+function renderParagraphs(value) {
+  const paragraphs = String(value || "")
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  if (!paragraphs.length) return "<p>No additional information available.</p>";
+  return paragraphs
+    .map(
+      (paragraph) =>
+        `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`,
+    )
+    .join("");
+}
+
+function catalogueMatches(design) {
+  const haystack = [
+    design.name,
+    design.developer,
+    design.country,
+    design.hqCity,
+    design.reactorType,
+    design.spectrum,
+    design.designStatus,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return (
+    haystack.includes(state.catalogSearch.toLowerCase()) &&
+    (state.catalogStatus === "All" ||
+      design.designStatus === state.catalogStatus) &&
+    (state.catalogType === "All" ||
+      design.reactorType === state.catalogType) &&
+    (state.catalogCountry === "All" ||
+      design.country === state.catalogCountry) &&
+    (state.catalogSpectrum === "All" ||
+      design.spectrum === state.catalogSpectrum)
+  );
+}
+
+function filteredCatalogueDesigns() {
+  const designs = state.designCatalog.designs.filter(catalogueMatches);
+  const sorters = {
+    name: (a, b) => a.name.localeCompare(b.name),
+    country: (a, b) =>
+      a.country.localeCompare(b.country) || a.name.localeCompare(b.name),
+    outletTemp: (a, b) =>
+      Number(b.outletTemp ?? -Infinity) -
+      Number(a.outletTemp ?? -Infinity),
+    thermal: (a, b) =>
+      Number(b.thermal ?? -Infinity) - Number(a.thermal ?? -Infinity),
+    gross: (a, b) =>
+      Number(b.gross ?? -Infinity) - Number(a.gross ?? -Infinity),
+  };
+  return designs.sort(sorters[state.designSort] || sorters.name);
+}
+
+function renderCatalogueCard(design) {
+  const meta =
+    DESIGN_STATUS_META[design.designStatus] ||
+    DESIGN_STATUS_META["Design & development"];
+  return `
+    <article class="design-card">
+      <div class="design-card-head">
+        <div>
+          <span class="status-pill ${meta.className}"><i></i>${escapeHtml(design.designStatus)}</span>
+          <h2>${escapeHtml(design.name)}</h2>
+        </div>
+        <button class="icon-button map-design-button" data-map-design="${escapeHtml(design.id)}" aria-label="Show ${escapeHtml(design.name)} on map">
+          <i class="ph ph-map-pin"></i>
+        </button>
+      </div>
+      <div class="design-badges">
+        <span>${escapeHtml(design.country)}</span>
+        <span>${escapeHtml(design.spectrum)}</span>
+        <span>${escapeHtml(design.reactorType)}</span>
+      </div>
+      <dl class="design-card-specs">
+        <div><dt>Developer</dt><dd>${escapeHtml(design.developer)}</dd></div>
+        <div><dt>Fuel enrichment</dt><dd>${escapeHtml(design.fuelEnrichment || "Not stated")}</dd></div>
+        <div><dt>Outlet temp.</dt><dd>${formatMeasure(design.outletTemp, "°C")}</dd></div>
+        <div><dt>Thermal</dt><dd>${formatMeasure(design.thermal, "MWt")}</dd></div>
+        <div><dt>Gross</dt><dd>${formatMeasure(design.gross, "MWe")}</dd></div>
+      </dl>
+      <a class="design-detail-link" href="./#designs/${encodeURIComponent(design.id)}">
+        Detailed information <i class="ph ph-arrow-right"></i>
+      </a>
+    </article>
+  `;
+}
+
+function renderCatalogueResults() {
+  const designs = filteredCatalogueDesigns();
+  const count = document.getElementById("catalogue-result-count");
+  const grid = document.getElementById("design-grid");
+  if (count) {
+    count.textContent = `Showing ${designs.length} of ${state.designCatalog.designs.length} designs`;
+  }
+  if (grid) {
+    grid.innerHTML =
+      designs.map(renderCatalogueCard).join("") ||
+      `<div class="catalogue-empty"><i class="ph ph-magnifying-glass"></i><strong>No designs match these filters</strong><button id="catalogue-reset-empty">Reset filters</button></div>`;
+    bindCatalogueResultEvents();
+  }
+}
+
+function catalogueTopbar() {
+  return `
+    <header class="topbar">
+      ${logo()}
+      ${primaryNav("designs")}
+      <div class="topbar-actions">
+        <a class="data-manager-link mobile-page-link" href="./#map" aria-label="Map">
+          <i class="ph ph-map-trifold" aria-hidden="true"></i>
+          <span>Map</span>
+        </a>
+        <a class="data-manager-link" href="./#admin">
+          <i class="ph ph-shield-check" aria-hidden="true"></i>
+          <span>Data manager</span>
+        </a>
+      </div>
+    </header>
+  `;
+}
+
+function renderDesignCatalogue() {
+  const routeId = decodeURIComponent(
+    window.location.hash.replace(/^#designs\/?/, ""),
+  );
+  const selected = state.designCatalog.designs.find(
+    (design) => design.id === routeId,
+  );
+  if (selected) {
+    renderDesignRecord(selected);
+    return;
+  }
+
+  const designs = filteredCatalogueDesigns();
+  app.innerHTML = `
+    <div class="catalogue-shell">
+      ${catalogueTopbar()}
+      <main>
+        <section class="catalogue-hero">
+          <div>
+            <p class="eyebrow">Technology intelligence</p>
+            <h1>SMR design database</h1>
+            <p>Compare technical specifications, applications, developers, and maturity across the global design landscape.</p>
+          </div>
+          <a class="source-credit" href="${escapeHtml(safeUrl(state.designCatalog.source.url))}" target="_blank" rel="noreferrer">
+            <i class="ph ph-arrow-square-out"></i>
+            <span>Source: World Nuclear Association<br><small>Updated ${escapeHtml(formatDate(state.designCatalog.source.sourceUpdatedAt))}</small></span>
+          </a>
+        </section>
+        <section class="catalogue-stats" aria-label="Catalogue summary">
+          <div><span>Designs</span><strong>${state.designCatalog.designs.length}</strong></div>
+          <div><span>Country labels</span><strong>${designUnique("country").length}</strong></div>
+          <div><span>Reactor types</span><strong>${designUnique("reactorType").length}</strong></div>
+          <div><span>With coordinates</span><strong>${state.designCatalog.designs.filter((design) => Number.isFinite(Number(design.latitude)) && Number.isFinite(Number(design.longitude))).length}</strong></div>
+        </section>
+        <section class="catalogue-toolbar" aria-label="Design database filters">
+          <label class="search-box catalogue-search">
+            <i class="ph ph-magnifying-glass"></i>
+            <input id="catalogue-search" type="search" value="${escapeHtml(state.catalogSearch)}" placeholder="Search designs, developers, or countries" aria-label="Search design database" />
+          </label>
+          <button class="secondary-button catalogue-mobile-filter-toggle" id="catalogue-mobile-filter-toggle">
+            <i class="ph ph-sliders-horizontal"></i> Show filters
+          </button>
+          <select id="catalogue-status" aria-label="Filter by design status">${optionList(DESIGN_STATUS_ORDER, state.catalogStatus, "All statuses")}</select>
+          <select id="catalogue-type" aria-label="Filter by reactor type">${optionList(designUnique("reactorType"), state.catalogType, "All reactor types")}</select>
+          <select id="catalogue-country" aria-label="Filter by country">${optionList(designUnique("country"), state.catalogCountry, "All countries")}</select>
+          <select id="catalogue-spectrum" aria-label="Filter by spectrum">${optionList(designUnique("spectrum"), state.catalogSpectrum, "All spectra")}</select>
+          <button class="secondary-button" id="catalogue-reset"><i class="ph ph-arrow-counter-clockwise"></i> Reset</button>
+        </section>
+        <div class="catalogue-results-head">
+          <strong id="catalogue-result-count">Showing ${designs.length} of ${state.designCatalog.designs.length} designs</strong>
+          <label>Sort by
+            <select id="catalogue-sort">
+              <option value="name" ${state.designSort === "name" ? "selected" : ""}>Name</option>
+              <option value="country" ${state.designSort === "country" ? "selected" : ""}>Country</option>
+              <option value="outletTemp" ${state.designSort === "outletTemp" ? "selected" : ""}>Outlet temperature</option>
+              <option value="thermal" ${state.designSort === "thermal" ? "selected" : ""}>Thermal capacity</option>
+              <option value="gross" ${state.designSort === "gross" ? "selected" : ""}>Gross capacity</option>
+            </select>
+          </label>
+        </div>
+        <section class="design-grid" id="design-grid">
+          ${designs.map(renderCatalogueCard).join("")}
+        </section>
+      </main>
+    </div>
+  `;
+  bindCatalogueEvents();
+}
+
+function bindCatalogueResultEvents() {
+  document.querySelectorAll("[data-map-design]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.showDesigns = true;
+      state.detailKind = "design";
+      state.selectedDesignId = button.dataset.mapDesign;
+      window.location.hash = "#map";
+    });
+  });
+  document
+    .getElementById("catalogue-reset-empty")
+    ?.addEventListener("click", clearCatalogueFilters);
+}
+
+function bindCatalogueEvents() {
+  document
+    .getElementById("catalogue-search")
+    ?.addEventListener("input", (event) => {
+      state.catalogSearch = event.target.value;
+      renderCatalogueResults();
+    });
+  [
+    ["catalogue-status", "catalogStatus"],
+    ["catalogue-type", "catalogType"],
+    ["catalogue-country", "catalogCountry"],
+    ["catalogue-spectrum", "catalogSpectrum"],
+    ["catalogue-sort", "designSort"],
+  ].forEach(([id, key]) => {
+    document.getElementById(id)?.addEventListener("change", (event) => {
+      state[key] = event.target.value;
+      renderCatalogueResults();
+    });
+  });
+  document
+    .getElementById("catalogue-reset")
+    ?.addEventListener("click", clearCatalogueFilters);
+  document
+    .getElementById("catalogue-mobile-filter-toggle")
+    ?.addEventListener("click", (event) => {
+      const toolbar = document.querySelector(".catalogue-toolbar");
+      const expanded = toolbar?.classList.toggle("filters-expanded");
+      event.currentTarget.innerHTML = `<i class="ph ${expanded ? "ph-x" : "ph-sliders-horizontal"}"></i> ${expanded ? "Hide filters" : "Show filters"}`;
+    });
+  bindCatalogueResultEvents();
+}
+
+function clearCatalogueFilters() {
+  state.catalogSearch = "";
+  state.catalogStatus = "All";
+  state.catalogType = "All";
+  state.catalogCountry = "All";
+  state.catalogSpectrum = "All";
+  state.designSort = "name";
+  renderDesignCatalogue();
+}
+
+function renderDesignRecord(design) {
+  const meta =
+    DESIGN_STATUS_META[design.designStatus] ||
+    DESIGN_STATUS_META["Design & development"];
+  const news = parseNews(design);
+  app.innerHTML = `
+    <div class="catalogue-shell">
+      ${catalogueTopbar()}
+      <main class="design-record-page">
+        <div class="design-record-head">
+          <a class="back-to-results" href="./#designs"><i class="ph ph-arrow-left"></i> Return to results</a>
+          <button class="secondary-button" data-map-design="${escapeHtml(design.id)}"><i class="ph ph-map-pin"></i> Show developer HQ on map</button>
+        </div>
+        <article class="design-record">
+          <div class="design-record-title">
+            <div>
+              <span class="status-pill ${meta.className}"><i></i>${escapeHtml(design.designStatus)}</span>
+              <h1>${escapeHtml(design.name)}</h1>
+              <p>${escapeHtml(design.developer)} · ${escapeHtml(design.hqCity)}, ${escapeHtml(design.country)}</p>
+            </div>
+            <div class="design-badges large">
+              <span>${escapeHtml(design.country)}</span>
+              <span>${escapeHtml(design.spectrum)}</span>
+              <span>${escapeHtml(design.reactorType)}</span>
+            </div>
+          </div>
+          <section class="design-record-specs" aria-label="Technical specifications">
+            <div><span>Developer</span><strong>${escapeHtml(design.developer)}</strong></div>
+            <div><span>Fuel enrichment</span><strong>${escapeHtml(design.fuelEnrichment || "Not stated")}</strong></div>
+            <div><span>Outlet temperature</span><strong>${formatMeasure(design.outletTemp, "°C")}</strong></div>
+            <div><span>Thermal capacity</span><strong>${formatMeasure(design.thermal, "MWt")}</strong></div>
+            <div><span>Gross capacity</span><strong>${formatMeasure(design.gross, "MWe")}</strong></div>
+            <div><span>Developer HQ coordinates</span><strong>${Number(design.latitude).toFixed(3)}, ${Number(design.longitude).toFixed(3)}</strong></div>
+          </section>
+          <section class="design-record-section">
+            <h2>Applications</h2>
+            <div class="application-list">${renderApplications(design)}</div>
+          </section>
+          <section class="design-record-section">
+            <h2>Additional information</h2>
+            <div class="long-form-copy">${renderParagraphs(design.notes)}</div>
+          </section>
+          <section class="design-record-section">
+            <h2>Latest news</h2>
+            ${
+              news.length
+                ? `<div class="news-list">${news
+                    .map(
+                      (item) => `
+                        <a href="${escapeHtml(safeUrl(item.url))}" target="_blank" rel="noreferrer">
+                          <span>${escapeHtml(item.date || "News")}</span>
+                          <strong>${escapeHtml(item.headline)}</strong>
+                          <i class="ph ph-arrow-square-out"></i>
+                        </a>
+                      `,
+                    )
+                    .join("")}</div>`
+                : `<p class="no-news">No linked news items are provided for this design.</p>`
+            }
+          </section>
+          <footer class="design-record-source">
+            <i class="ph ph-info"></i>
+            <span>Technical data and narrative sourced from the World Nuclear Association SMR Design Database, updated ${escapeHtml(formatDate(state.designCatalog.source.sourceUpdatedAt))}. Coordinates identify the developer headquarters city supplied by the source.</span>
+          </footer>
+        </article>
+      </main>
+    </div>
+  `;
+  bindCatalogueResultEvents();
 }
 
 function loginScreen(error = "") {
@@ -1019,6 +1612,382 @@ function parseCsv(text) {
   });
 }
 
+const NRC_OUTCOME_META = {
+  active: { label: "Active review", icon: "ph-hourglass-medium" },
+  licensed: { label: "License held", icon: "ph-seal-check" },
+  operating: { label: "Operating", icon: "ph-lightning" },
+  failed: { label: "Withdrawn / stopped", icon: "ph-x-circle" },
+};
+
+const NRC_START = new Date("2007-01-01T00:00:00Z").getTime();
+const NRC_END = new Date("2028-01-01T00:00:00Z").getTime();
+const NRC_TODAY = new Date(`${NRC_APPLICATIONS.updatedAt}T00:00:00Z`).getTime();
+
+function nrcUnique(field) {
+  return [
+    ...new Set(
+      NRC_APPLICATIONS.applications.map((item) => item[field]).filter(Boolean),
+    ),
+  ].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+function nrcMatches(application) {
+  const haystack = [
+    application.name,
+    application.applicant,
+    application.site,
+    application.design,
+    application.technology,
+    application.docket,
+    application.status,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return (
+    haystack.includes(state.nrcSearch.toLowerCase()) &&
+    state.nrcOutcomes.has(application.outcome) &&
+    (state.nrcDesign === "All" || application.design === state.nrcDesign) &&
+    (state.nrcLicense === "All" ||
+      application.licenseType === state.nrcLicense)
+  );
+}
+
+function nrcFiltered() {
+  const applications = NRC_APPLICATIONS.applications.filter(nrcMatches);
+  return applications.sort((a, b) => {
+    if (state.nrcSort === "decision") {
+      return new Date(b.decisionDate) - new Date(a.decisionDate);
+    }
+    if (state.nrcSort === "name") return a.name.localeCompare(b.name);
+    return new Date(a.applicationDate) - new Date(b.applicationDate);
+  });
+}
+
+function nrcCount(outcome) {
+  return NRC_APPLICATIONS.applications.filter(
+    (application) => application.outcome === outcome,
+  ).length;
+}
+
+function nrcTimelinePosition(date) {
+  const time = Math.min(
+    NRC_END,
+    Math.max(NRC_START, new Date(`${date}T00:00:00Z`).getTime()),
+  );
+  return ((time - NRC_START) / (NRC_END - NRC_START)) * 100;
+}
+
+function nrcShortDate(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "TBD";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function renderNrcTimeline(applications) {
+  const years = [2007, 2010, 2013, 2016, 2019, 2022, 2025, 2028];
+  if (!applications.length) {
+    return `
+      <div class="nrc-empty">
+        <i class="ph ph-funnel-x"></i>
+        <strong>No applications match these filters</strong>
+        <button id="nrc-reset-empty">Reset filters</button>
+      </div>
+    `;
+  }
+  return `
+    <div class="nrc-timeline" role="table" aria-label="NRC application timeline">
+      <div class="nrc-timeline-axis" aria-hidden="true">
+        <span></span>
+        <div>
+          ${years
+            .map(
+              (year) =>
+                `<i style="left:${nrcTimelinePosition(`${year}-01-01`)}%"><b>${year}</b></i>`,
+            )
+            .join("")}
+          <em style="left:${nrcTimelinePosition(NRC_APPLICATIONS.updatedAt)}%">Today</em>
+        </div>
+      </div>
+      ${applications
+        .map((application) => {
+          const start = nrcTimelinePosition(application.applicationDate);
+          const end = nrcTimelinePosition(application.decisionDate);
+          const isSelected = application.id === state.nrcSelectedId;
+          return `
+            <button class="nrc-timeline-row ${isSelected ? "is-selected" : ""}" data-nrc-id="${escapeHtml(application.id)}" role="row">
+              <span class="nrc-row-label">
+                <strong>${escapeHtml(application.name)}</strong>
+                <small>${escapeHtml(application.design)} · ${escapeHtml(application.docket)}</small>
+              </span>
+              <span class="nrc-track" aria-label="${escapeHtml(nrcShortDate(application.applicationDate))} to ${escapeHtml(nrcShortDate(application.decisionDate))}">
+                <i class="nrc-span ${escapeHtml(application.outcome)}" style="left:${start}%;width:${Math.max(0.7, end - start)}%"></i>
+                <i class="nrc-start" style="left:${start}%"></i>
+                <i class="nrc-end ${escapeHtml(application.outcome)}" style="left:${end}%"></i>
+                <span class="sr-only">${escapeHtml(application.status)}</span>
+              </span>
+              <span class="nrc-row-status ${escapeHtml(application.outcome)}">${escapeHtml(application.status)}</span>
+            </button>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderNrcTable(applications) {
+  if (!applications.length) return renderNrcTimeline(applications);
+  return `
+    <div class="nrc-table-wrap">
+      <table class="nrc-table">
+        <thead><tr>
+          <th>Project</th><th>Submitted</th><th>Design</th><th>Licensing path</th><th>Units</th><th>Status</th><th>Decision / target</th>
+        </tr></thead>
+        <tbody>
+          ${applications
+            .map(
+              (application) => `
+                <tr class="${application.id === state.nrcSelectedId ? "is-selected" : ""}" data-nrc-id="${escapeHtml(application.id)}" tabindex="0">
+                  <td><strong>${escapeHtml(application.name)}</strong><small>${escapeHtml(application.site)}</small></td>
+                  <td>${escapeHtml(nrcShortDate(application.applicationDate))}</td>
+                  <td>${escapeHtml(application.design)}</td>
+                  <td>${escapeHtml(application.licenseType)}<small>${escapeHtml(application.part)}</small></td>
+                  <td>${application.units}</td>
+                  <td><span class="nrc-row-status ${escapeHtml(application.outcome)}">${escapeHtml(application.status)}</span></td>
+                  <td>${escapeHtml(nrcShortDate(application.decisionDate))}</td>
+                </tr>
+              `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderNrcDetail(application) {
+  if (!application) {
+    return `<div class="nrc-detail-empty"><i class="ph ph-cursor-click"></i><strong>Select an application</strong></div>`;
+  }
+  const outcome = NRC_OUTCOME_META[application.outcome];
+  return `
+    <div class="nrc-detail-head">
+      <span class="nrc-outcome-pill ${escapeHtml(application.outcome)}"><i class="ph ${outcome.icon}"></i>${escapeHtml(outcome.label)}</span>
+      <span class="nrc-docket">${escapeHtml(application.docket)}</span>
+    </div>
+    <h2>${escapeHtml(application.name)}</h2>
+    <p class="nrc-detail-location"><i class="ph ph-map-pin"></i>${escapeHtml(application.site)}</p>
+    <p class="nrc-detail-summary">${escapeHtml(application.summary)}</p>
+    <dl class="nrc-facts">
+      <div><dt>Applicant</dt><dd>${escapeHtml(application.applicant)}</dd></div>
+      <div><dt>Design</dt><dd>${escapeHtml(application.design)}</dd></div>
+      <div><dt>Technology</dt><dd>${escapeHtml(application.technology)}</dd></div>
+      <div><dt>Scale</dt><dd>${application.units} ${application.units === 1 ? "unit" : "units"} · ${escapeHtml(application.capacity)}</dd></div>
+      <div><dt>Licensing path</dt><dd>${escapeHtml(application.licenseType)} · ${escapeHtml(application.part)}</dd></div>
+      <div><dt>Current status</dt><dd>${escapeHtml(application.status)}</dd></div>
+    </dl>
+    <section class="nrc-milestones">
+      <h3>Application history</h3>
+      <ol>
+        ${application.milestones
+          .map(([date, label]) => {
+            const isTarget =
+              new Date(`${date}T00:00:00Z`).getTime() > NRC_TODAY ||
+              /target/i.test(label);
+            return `
+              <li class="${isTarget ? "is-target" : ""}">
+                <time datetime="${escapeHtml(date)}">${escapeHtml(nrcShortDate(date))}</time>
+                <span>${escapeHtml(label)}${isTarget ? "<em>Target</em>" : ""}</span>
+              </li>
+            `;
+          })
+          .join("")}
+      </ol>
+    </section>
+    <a class="primary-button nrc-source-button" href="${escapeHtml(safeUrl(application.source))}" target="_blank" rel="noreferrer">
+      Open official NRC file <i class="ph ph-arrow-square-out"></i>
+    </a>
+  `;
+}
+
+function renderNrcLedger() {
+  const applications = nrcFiltered();
+  if (!applications.some((item) => item.id === state.nrcSelectedId)) {
+    state.nrcSelectedId = applications[0]?.id || null;
+  }
+  const selected = NRC_APPLICATIONS.applications.find(
+    (item) => item.id === state.nrcSelectedId,
+  );
+  const ap1000Count = NRC_APPLICATIONS.applications.filter(
+    (item) => item.design === "AP1000",
+  ).length;
+  app.innerHTML = `
+    <div class="atlas-shell nrc-shell">
+      <header class="topbar">
+        ${logo()}
+        ${primaryNav("nrc")}
+        <div class="topbar-actions">
+          <a class="data-manager-link" href="https://www.nrc.gov/reactors/new-reactors" target="_blank" rel="noreferrer">
+            <i class="ph ph-buildings"></i><span>NRC portal</span>
+          </a>
+        </div>
+      </header>
+
+      <main class="nrc-main">
+        <section class="nrc-hero">
+          <div class="nrc-hero-copy">
+            <p class="eyebrow">U.S. new-reactor licensing intelligence</p>
+            <h1>NRC Licensing Ledger</h1>
+            <p>Follow every formal, site-specific application from filing to license, operation, withdrawal or suspension.</p>
+            <p class="updated">Evidence checked <strong>${escapeHtml(formatDate(NRC_APPLICATIONS.updatedAt))}</strong> · Official NRC sources throughout</p>
+          </div>
+          <div class="nrc-hero-note">
+            <span>Signal from the queue</span>
+            <strong>Advanced reactors now drive the active docket.</strong>
+            <p>Only Vogtle reached operation from the 2007–09 COL wave. Clinch River is the clearest near-term permit decision; Project Matador places four new AP1000 units back in the pipeline.</p>
+          </div>
+        </section>
+
+        <section class="nrc-kpis" aria-label="Application outcomes">
+          <div class="nrc-kpi nrc-kpi-total"><i class="ph ph-files"></i><span><small>Applications tracked</small><strong>${NRC_APPLICATIONS.applications.length}</strong><em>formal site-specific files</em></span></div>
+          ${Object.entries(NRC_OUTCOME_META)
+            .map(
+              ([key, meta]) => `
+                <button class="nrc-kpi ${key} ${state.nrcOutcomes.has(key) ? "is-active" : ""}" data-nrc-outcome="${key}">
+                  <i class="ph ${meta.icon}"></i>
+                  <span><small>${escapeHtml(meta.label)}</small><strong>${nrcCount(key)}</strong></span>
+                </button>
+              `,
+            )
+            .join("")}
+        </section>
+
+        <section class="nrc-toolbar" aria-label="Ledger filters">
+          <label class="search-box nrc-search">
+            <i class="ph ph-magnifying-glass"></i>
+            <input id="nrc-search" type="search" value="${escapeHtml(state.nrcSearch)}" placeholder="Search project, applicant, docket…" />
+          </label>
+          <label><span>Design</span><select id="nrc-design">${optionList(nrcUnique("design"), state.nrcDesign, "All designs")}</select></label>
+          <label><span>Licensing path</span><select id="nrc-license">${optionList(nrcUnique("licenseType"), state.nrcLicense, "All paths")}</select></label>
+          <label><span>Sort</span><select id="nrc-sort">
+            <option value="application" ${state.nrcSort === "application" ? "selected" : ""}>Filing date</option>
+            <option value="decision" ${state.nrcSort === "decision" ? "selected" : ""}>Latest outcome</option>
+            <option value="name" ${state.nrcSort === "name" ? "selected" : ""}>Project name</option>
+          </select></label>
+          <div class="nrc-view-toggle" aria-label="View">
+            <button data-nrc-view="timeline" class="${state.nrcView === "timeline" ? "is-active" : ""}" aria-label="Timeline view"><i class="ph ph-chart-bar-horizontal"></i></button>
+            <button data-nrc-view="table" class="${state.nrcView === "table" ? "is-active" : ""}" aria-label="Table view"><i class="ph ph-table"></i></button>
+          </div>
+        </section>
+
+        <div class="nrc-quick-row">
+          <span><strong>${applications.length}</strong> of ${NRC_APPLICATIONS.applications.length} records</span>
+          <button id="nrc-ap1000"><i class="ph ph-atom"></i> AP1000 pipeline <strong>${ap1000Count}</strong></button>
+          <button id="nrc-reset"><i class="ph ph-arrow-counter-clockwise"></i> Reset</button>
+        </div>
+
+        <section class="nrc-workspace">
+          <div class="nrc-ledger-stage">
+            <div class="nrc-legend">
+              ${Object.entries(NRC_OUTCOME_META)
+                .map(
+                  ([key, meta]) =>
+                    `<span><i class="${key}"></i>${escapeHtml(meta.label)}</span>`,
+                )
+                .join("")}
+              <small>Dashed endpoints indicate an NRC or applicant target.</small>
+            </div>
+            ${state.nrcView === "timeline" ? renderNrcTimeline(applications) : renderNrcTable(applications)}
+          </div>
+          <aside class="nrc-detail" aria-live="polite">
+            ${renderNrcDetail(selected)}
+          </aside>
+        </section>
+
+        <section class="nrc-methodology">
+          <div>
+            <p class="eyebrow">Coverage and method</p>
+            <h2>What this ledger includes</h2>
+            <p>${escapeHtml(NRC_APPLICATIONS.scope)}</p>
+            <p>“Failed” describes the application or licensed project outcome—not the reactor design. A license held without construction is separated from an operating reactor. Future dates are NRC or applicant targets and may move.</p>
+          </div>
+          <div class="nrc-master-sources">
+            <strong>Official NRC indexes</strong>
+            ${NRC_APPLICATIONS.masterSources
+              .map(
+                (source) =>
+                  `<a href="${escapeHtml(safeUrl(source.url))}" target="_blank" rel="noreferrer">${escapeHtml(source.label)}<i class="ph ph-arrow-up-right"></i></a>`,
+              )
+              .join("")}
+          </div>
+        </section>
+      </main>
+    </div>
+  `;
+  bindNrcEvents();
+}
+
+function resetNrcFilters() {
+  state.nrcSearch = "";
+  state.nrcOutcomes = new Set(["active", "licensed", "operating", "failed"]);
+  state.nrcDesign = "All";
+  state.nrcLicense = "All";
+  state.nrcSort = "application";
+  renderNrcLedger();
+}
+
+function bindNrcEvents() {
+  document.getElementById("nrc-search")?.addEventListener("input", (event) => {
+    state.nrcSearch = event.target.value;
+    renderNrcLedger();
+    document.getElementById("nrc-search")?.focus();
+  });
+  [["nrc-design", "nrcDesign"], ["nrc-license", "nrcLicense"], ["nrc-sort", "nrcSort"]].forEach(
+    ([id, key]) =>
+      document.getElementById(id)?.addEventListener("change", (event) => {
+        state[key] = event.target.value;
+        renderNrcLedger();
+      }),
+  );
+  document.querySelectorAll("[data-nrc-outcome]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const outcome = button.dataset.nrcOutcome;
+      if (state.nrcOutcomes.size === 1 && state.nrcOutcomes.has(outcome)) {
+        state.nrcOutcomes = new Set(["active", "licensed", "operating", "failed"]);
+      } else {
+        state.nrcOutcomes = new Set([outcome]);
+      }
+      renderNrcLedger();
+    });
+  });
+  document.querySelectorAll("[data-nrc-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.nrcView = button.dataset.nrcView;
+      renderNrcLedger();
+    });
+  });
+  const selectNrcRow = (element) => {
+    state.nrcSelectedId = element.dataset.nrcId;
+    renderNrcLedger();
+  };
+  document.querySelectorAll("[data-nrc-id]").forEach((element) => {
+    element.addEventListener("click", () => selectNrcRow(element));
+    element.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") selectNrcRow(element);
+    });
+  });
+  document.getElementById("nrc-ap1000")?.addEventListener("click", () => {
+    state.nrcDesign = "AP1000";
+    renderNrcLedger();
+  });
+  ["nrc-reset", "nrc-reset-empty"].forEach((id) =>
+    document.getElementById(id)?.addEventListener("click", resetNrcFilters),
+  );
+}
+
 async function importData(event) {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -1054,7 +2023,7 @@ async function importData(event) {
 }
 
 async function start() {
-  await fetchDataset();
+  await Promise.all([fetchDataset(), fetchDesignCatalog()]);
   renderRoute();
 }
 
@@ -1067,6 +2036,14 @@ function renderRoute() {
 
   if (isAdminRoute()) {
     state.adminPassword && state.adminDraft ? renderAdmin() : loginScreen();
+    return;
+  }
+  if (isDesignRoute()) {
+    renderDesignCatalogue();
+    return;
+  }
+  if (isNrcRoute()) {
+    renderNrcLedger();
     return;
   }
   renderMain();

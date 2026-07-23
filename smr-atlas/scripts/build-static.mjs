@@ -28,6 +28,9 @@ await cp(path.join(root, "src"), path.join(dist, "client", "src"), {
 await cp(path.join(root, "data"), path.join(dist, "client", "data"), {
   recursive: true,
 });
+await cp(path.join(root, "public"), path.join(dist, "client"), {
+  recursive: true,
+});
 await writeFile(path.join(dist, "client", ".nojekyll"), "");
 
 let publishedData = DEFAULT_DATA;
@@ -65,7 +68,7 @@ await writeFile(
   htmlPath,
   html.replace(
     "</head>",
-    '<meta property="og:title" content="Global SMR Atlas" />\n<meta property="og:description" content="Explore and maintain a global SMR project dataset." />\n</head>',
+    '<meta property="og:title" content="NRC Licensing Ledger · Global SMR Atlas" />\n<meta property="og:description" content="Explore active, licensed, operating and failed U.S. new-reactor applications." />\n<meta property="og:image" content="./og.png" />\n<meta name="twitter:card" content="summary_large_image" />\n</head>',
   ),
 );
 
