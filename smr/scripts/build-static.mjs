@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_DATA } from "../data/projects.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
@@ -27,6 +28,21 @@ await cp(path.join(root, "src"), path.join(dist, "client", "src"), {
 await cp(path.join(root, "data"), path.join(dist, "client", "data"), {
   recursive: true,
 });
+await writeFile(path.join(dist, "client", ".nojekyll"), "");
+
+let publishedData = DEFAULT_DATA;
+try {
+  const customData = JSON.parse(
+    await readFile(path.join(root, "data", "projects.json"), "utf8"),
+  );
+  if (Array.isArray(customData.projects)) publishedData = customData;
+} catch {
+  // projects.json is optional; the bundled dataset is the initial source.
+}
+await writeFile(
+  path.join(dist, "client", "data", "projects.json"),
+  JSON.stringify(publishedData, null, 2),
+);
 await cp(
   path.join(root, "worker", "index.js"),
   path.join(dist, "server", "index.js"),
@@ -53,4 +69,4 @@ await writeFile(
   ),
 );
 
-console.log("Built Global SMR Atlas for Sites.");
+console.log("Built Global SMR Atlas for Sites and GitHub Pages.");

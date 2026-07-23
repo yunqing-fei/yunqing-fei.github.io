@@ -1008,6 +1008,30 @@ select {
   font-size: 13px;
 }
 
+.static-mode-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid #bed4f5;
+  border-radius: 8px;
+  background: #eef5ff;
+  color: var(--slate-700);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.static-mode-note > i {
+  margin-top: 1px;
+  color: var(--blue-600);
+  font-size: 18px;
+}
+
+.static-mode-note strong {
+  color: var(--navy-900);
+}
+
 .admin-summary {
   display: grid;
   grid-template-columns: 140px 140px 220px 1fr;

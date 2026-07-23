@@ -15,7 +15,26 @@ const STATUS_META = {
 };
 
 const app = document.querySelector("#app");
-const routeIsAdmin = window.location.pathname.startsWith("/admin");
+const LOCAL_DATA_KEY = "smr-atlas-dataset-v1";
+const STATIC_PASSWORD = "BOCI";
+
+function detectAppRoot() {
+  const root = new URL(document.baseURI);
+  root.hash = "";
+  root.search = "";
+  root.pathname = root.pathname
+    .replace(/index\.html$/i, "")
+    .replace(/admin\/?$/i, "");
+  if (!root.pathname.endsWith("/")) root.pathname += "/";
+  return root;
+}
+
+const APP_ROOT = detectAppRoot();
+const appUrl = (path = "") => new URL(String(path).replace(/^\/+/, ""), APP_ROOT);
+const apiUrl = (resource) => appUrl(`api/${resource}`);
+const isAdminRoute = () =>
+  window.location.hash.toLowerCase() === "#admin" ||
+  /\/admin\/?$/i.test(window.location.pathname);
 
 const state = {
   data: structuredClone(DEFAULT_DATA),
@@ -34,6 +53,7 @@ const state = {
   adminDraft: null,
   adminSearch: "",
   adminDirty: false,
+  storageMode: "static",
 };
 
 function escapeHtml(value = "") {
@@ -90,17 +110,45 @@ function optionList(values, selected, allLabel) {
   ].join("");
 }
 
+function readBrowserDataset() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(LOCAL_DATA_KEY));
+    return Array.isArray(saved?.projects) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readPublishedDataset() {
+  try {
+    const response = await fetch(appUrl("data/projects.json"), {
+      headers: { accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    const published = await response.json();
+    return Array.isArray(published?.projects) ? published : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchDataset() {
   try {
-    const response = await fetch("/api/projects", {
+    const response = await fetch(apiUrl("projects"), {
       headers: { accept: "application/json" },
     });
     if (!response.ok) throw new Error("Dataset request failed");
     const next = await response.json();
     if (!Array.isArray(next.projects)) throw new Error("Dataset shape is invalid");
     state.data = next;
+    state.storageMode = ["d1", "local-dev"].includes(next.storage)
+      ? "api"
+      : "static";
   } catch {
-    state.data = structuredClone(DEFAULT_DATA);
+    state.storageMode = "static";
+    state.data = structuredClone(
+      readBrowserDataset() || (await readPublishedDataset()) || DEFAULT_DATA,
+    );
   }
 }
 
@@ -139,7 +187,7 @@ function statusCount(status) {
 
 function logo() {
   return `
-    <a class="brand" href="/" aria-label="Global SMR Atlas home">
+    <a class="brand" href="./" aria-label="Global SMR Atlas home">
       <span class="brand-icon" aria-hidden="true"><i class="ph ph-globe-hemisphere-west"></i></span>
       <span>Global SMR Atlas</span>
     </a>
@@ -157,7 +205,7 @@ function renderMain() {
           <button class="icon-button filter-trigger" id="mobile-filter-open" aria-label="Open filters">
             <i class="ph ph-sliders-horizontal"></i>
           </button>
-          <a class="data-manager-link" href="/admin">
+          <a class="data-manager-link" href="./#admin">
             <i class="ph ph-shield-check" aria-hidden="true"></i>
             <span>Data manager</span>
           </a>
@@ -502,7 +550,7 @@ function loginScreen(error = "") {
   app.innerHTML = `
     <main class="login-page">
       <section class="login-visual">
-        <a href="/" class="back-link"><i class="ph ph-arrow-left"></i> Back to atlas</a>
+        <a href="./" class="back-link"><i class="ph ph-arrow-left"></i> Back to atlas</a>
         <div class="login-visual-copy">
           <span class="brand-icon large"><i class="ph ph-globe-hemisphere-west"></i></span>
           <p class="eyebrow">Global SMR Atlas</p>
@@ -545,8 +593,20 @@ async function handleLogin(event) {
   const password = document.getElementById("admin-password").value;
   button.disabled = true;
   button.textContent = "Checking…";
+
+  if (state.storageMode === "static") {
+    if (password !== STATIC_PASSWORD) {
+      loginScreen("The password is incorrect.");
+      return;
+    }
+    state.adminPassword = password;
+    state.adminDraft = structuredClone(state.data);
+    renderAdmin();
+    return;
+  }
+
   try {
-    const response = await fetch("/api/login", {
+    const response = await fetch(apiUrl("login"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ password }),
@@ -572,6 +632,7 @@ function adminFilteredProjects() {
 
 function renderAdmin() {
   const projects = adminFilteredProjects();
+  const isStatic = state.storageMode === "static";
   app.innerHTML = `
     <div class="admin-shell">
       <header class="admin-topbar">
@@ -581,7 +642,7 @@ function renderAdmin() {
             <i class="ph ${state.adminDirty ? "ph-circle" : "ph-check-circle"}"></i>
             ${state.adminDirty ? "Unsaved changes" : "All changes saved"}
           </span>
-          <a href="/" class="secondary-button compact"><i class="ph ph-map-trifold"></i><span>View atlas</span></a>
+          <a href="./" class="secondary-button compact"><i class="ph ph-map-trifold"></i><span>View atlas</span></a>
           <button class="icon-button" id="admin-logout" aria-label="Lock data manager"><i class="ph ph-lock"></i></button>
         </div>
       </header>
@@ -590,12 +651,21 @@ function renderAdmin() {
           <div>
             <p class="eyebrow">Protected workspace</p>
             <h1>Project data manager</h1>
-            <p>Update the live dataset, then publish changes to the atlas.</p>
+            <p>${isStatic ? "Update the dataset stored in this browser, then export it for publishing." : "Update the live dataset, then publish changes to the atlas."}</p>
           </div>
           <button class="primary-button" id="save-online" ${state.adminDirty ? "" : "disabled"}>
-            <i class="ph ph-cloud-arrow-up"></i> Save online
+            <i class="ph ${isStatic ? "ph-floppy-disk" : "ph-cloud-arrow-up"}"></i> ${isStatic ? "Save in browser" : "Save online"}
           </button>
         </div>
+
+        ${
+          isStatic
+            ? `<div class="static-mode-note">
+                <i class="ph ph-browser"></i>
+                <span><strong>GitHub Pages mode:</strong> changes are private to this browser. Export JSON or CSV and commit the updated data file to share changes with everyone.</span>
+              </div>`
+            : ""
+        }
 
         <section class="admin-summary">
           <div><span>Projects</span><strong>${state.adminDraft.projects.length}</strong></div>
@@ -796,9 +866,29 @@ function addProject() {
 async function saveOnline() {
   const button = document.getElementById("save-online");
   button.disabled = true;
-  button.innerHTML = '<i class="ph ph-circle-notch spin"></i> Publishing…';
+  button.innerHTML = `<i class="ph ph-circle-notch spin"></i> ${state.storageMode === "static" ? "Saving…" : "Publishing…"}`;
+
+  if (state.storageMode === "static") {
+    try {
+      state.adminDraft.updatedAt = new Date().toISOString();
+      window.localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(state.adminDraft));
+      state.adminDirty = false;
+      state.data = structuredClone(state.adminDraft);
+      renderAdmin();
+      showToast(
+        "Saved in this browser. Export a file to publish the dataset elsewhere.",
+        "success",
+      );
+    } catch {
+      button.disabled = false;
+      button.innerHTML = '<i class="ph ph-floppy-disk"></i> Save in browser';
+      showToast("This browser could not store the dataset.", "error");
+    }
+    return;
+  }
+
   try {
-    const response = await fetch("/api/projects", {
+    const response = await fetch(apiUrl("projects"), {
       method: "PUT",
       headers: {
         "content-type": "application/json",
@@ -845,7 +935,7 @@ function download(filename, content, type) {
 
 function exportJson() {
   download(
-    `smr-atlas-${new Date().toISOString().slice(0, 10)}.json`,
+    "projects.json",
     JSON.stringify(state.adminDraft, null, 2),
     "application/json",
   );
@@ -965,11 +1055,22 @@ async function importData(event) {
 
 async function start() {
   await fetchDataset();
-  if (routeIsAdmin) {
-    loginScreen();
-  } else {
-    renderMain();
-  }
+  renderRoute();
 }
 
+function renderRoute() {
+  document.body.classList.remove("filters-open");
+  state.map?.remove();
+  state.map = null;
+  state.markerLayer = null;
+  state.markers.clear();
+
+  if (isAdminRoute()) {
+    state.adminPassword && state.adminDraft ? renderAdmin() : loginScreen();
+    return;
+  }
+  renderMain();
+}
+
+window.addEventListener("hashchange", renderRoute);
 start();
