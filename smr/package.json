@@ -1,0 +1,14 @@
+{
+  "name": "smr-atlas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "build": "node scripts/build-static.mjs",
+    "preview": "node scripts/dev-server.mjs",
+    "test:sites": "node --test tests/sites-worker.test.mjs"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
