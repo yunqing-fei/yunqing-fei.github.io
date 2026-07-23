@@ -20,7 +20,7 @@ the site works at both `https://username.github.io/` and
 ## Data manager on static hosting
 
 Open the **Data manager** link, or append `#admin` to the site URL. The initial
-case-sensitive password is `BOCI`.
+password is `****`.
 
 GitHub Pages cannot run a database or securely protect a client-only page.
 There, edits are saved only in the current browser. To publish them:
