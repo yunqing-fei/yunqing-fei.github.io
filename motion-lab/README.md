@@ -15,7 +15,7 @@ npm run dev
 npm run build
 ```
 
-The GitHub Pages-ready static site is emitted to `dist/client`. Asset URLs are relative, so the build works from a repository subpath such as `https://username.github.io/motion-lab/`.
+The GitHub Pages-ready static site is emitted to `dist/client`. Vite is configured with the explicit `/motion-lab/` repository base path, so production scripts, styles, and images load from `https://username.github.io/motion-lab/`.
 
 ## Publish on GitHub Pages
 
@@ -23,3 +23,5 @@ The GitHub Pages-ready static site is emitted to `dist/client`. Asset URLs are r
 2. In the repository, open **Settings → Pages**.
 3. Set **Source** to **GitHub Actions**.
 4. Run the included **Deploy Motion Lab to GitHub Pages** workflow, or push to `main`.
+
+Do not select the repository root as a branch-based Pages source. The root `index.html` is Vite source input; the workflow builds it and publishes only `dist/client`.
