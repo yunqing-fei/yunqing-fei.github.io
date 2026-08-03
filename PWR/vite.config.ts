@@ -1,26 +1,30 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-function githubPagesConfig() {
-  const repository = process.env.GITHUB_REPOSITORY ?? "";
-  const [owner = "", repositoryName = ""] = repository.split("/");
-  const isGitHubBuild = process.env.GITHUB_ACTIONS === "true";
-  const isUserOrOrganizationSite = repositoryName === `${owner}.github.io`;
+function normalizeBasePath(value: string | undefined) {
+  const requestedPath = value?.trim();
 
-  const base =
-    isGitHubBuild && repositoryName && !isUserOrOrganizationSite
-      ? `/${repositoryName}/`
-      : "/";
-  const siteUrl =
-    isGitHubBuild && owner && repositoryName
-      ? `https://${owner}.github.io${isUserOrOrganizationSite ? "" : `/${repositoryName}`}`
-      : "http://localhost:5173";
+  if (!requestedPath || requestedPath === "." || requestedPath === "./") {
+    return "./";
+  }
 
-  return { base, siteUrl };
+  const withLeadingSlash = requestedPath.startsWith("/")
+    ? requestedPath
+    : `/${requestedPath}`;
+
+  return withLeadingSlash.endsWith("/")
+    ? withLeadingSlash
+    : `${withLeadingSlash}/`;
 }
 
 export default defineConfig(() => {
-  const { base, siteUrl } = githubPagesConfig();
+  // Relative assets work at the domain root, /pwr/, or any other folder.
+  // Set VITE_BASE_PATH=/pwr/ only when an explicit absolute base is preferred.
+  const base = normalizeBasePath(process.env.VITE_BASE_PATH);
+  const siteUrl = (process.env.VITE_SITE_URL ?? ".").replace(
+    /\/$/,
+    "",
+  );
 
   return {
     base,
